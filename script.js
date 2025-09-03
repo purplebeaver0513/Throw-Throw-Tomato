@@ -791,6 +791,24 @@ toMenuBtn.addEventListener('click', () => setScreen('menu'));
 /*********************
  * HIGHSCORE STORAGE *
  *********************/
+async function submitScore(name, score) {
+  if (!sessionId) await startSession();
+  const res = await fetch(`${EDGE_FN}?action=submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId, name, score })
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    if (json.error === "rate_limited") {
+      alert(`Too fast — try again in ${Math.ceil(json.retryMs/1000)}s`);
+    } else {
+      alert(json.error || "Submit failed");
+    }
+  }
+}
+
+
 function todayKey() {
   const d = new Date();
   const y = d.getFullYear();
