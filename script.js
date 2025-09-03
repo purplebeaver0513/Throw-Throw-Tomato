@@ -1,6 +1,14 @@
 /*************************
  * Throw Throw Tomato JS *
+ * (with Supabase Leaderboards)
  *************************/
+
+/** ============================
+ *  SUPABASE CONFIG (FILL THESE)
+ *  ============================ */
+const SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co"; // Settings → API → Project URL
+const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";            // Settings → API → anon public key (safe for browser)
+const EDGE_FN = `${SUPABASE_URL}/functions/v1/scorekeeper`;  // Edge Function URL (deployed in Supabase)
 
 /** ============================
  *  ASSETS
@@ -122,17 +130,24 @@ function clearMenuBackground() {
   mainMenu.style.backgroundImage = '';
 }
 
+/** ================
+ * Supabase Session
+ * ================*/
 let sessionId = null;
 
 async function startSession() {
-  const res = await fetch(`${EDGE_FN}?action=start`, { method: "POST" });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error || "start failed");
-  sessionId = json.sessionId;
+  try {
+    const res = await fetch(`${EDGE_FN}?action=start`, { method: "POST" });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "start failed");
+    sessionId = json.sessionId;
+  } catch (e) {
+    console.error("[TTT] startSession error:", e);
+  }
 }
 
+// Kick off a session right away
 startSession().catch(console.error);
-
 
 /**************
  * GAME STATE *
@@ -158,8 +173,8 @@ let animId = null; // SINGLE RAF LOOP ID
 
 let musicVolume = 1.0;
 let sfxVolume = 1.0;
+// remote leaderboard submission
 let pendingScore = 0;
-let pendingDestinations = { today: false, alltime: false };
 
 let comboCount = 0;
 let bestStreak = 0;
@@ -689,18 +704,12 @@ function triggerBonusRound() {
 function endBonusRound() {
   inBonusRound = false; bonusFarmer = null; isGameOver = true;
 
-  const dest = highscoreDestinations(score);
   pendingScore = score;
-  pendingDestinations = dest;
 
-  if (dest.today || dest.alltime) {
-    finalScoreValue.textContent = score.toLocaleString();
-    playerNameInput.value = '';
-    setScreen('nameEntry');
-  } else {
-    finalScoreValue2.textContent = score.toLocaleString();
-    setScreen('toMenuOverlay');
-  }
+  // Always prompt for name; server will store, and UI will read from views
+  finalScoreValue.textContent = score.toLocaleString();
+  playerNameInput.value = '';
+  setScreen('nameEntry');
 }
 
 /*********************
@@ -778,9 +787,9 @@ scoresToMenuBtn.addEventListener('click', () => setScreen('menu'));
 showAllTimeBtn.addEventListener('click', () => { renderAllTimeScores(); setScreen('scores'); });
 
 // Name entry buttons
-saveScoreBtn.addEventListener('click', () => {
+saveScoreBtn.addEventListener('click', async () => {
   const name = (playerNameInput.value || 'Player').trim().slice(0, 16);
-  commitScoreWithDestinations(pendingScore, name, pendingDestinations);
+  await submitScore(name, pendingScore);
   setScreen('menu');
 });
 cancelSaveBtn.addEventListener('click', () => setScreen('menu'));
@@ -789,107 +798,112 @@ cancelSaveBtn.addEventListener('click', () => setScreen('menu'));
 toMenuBtn.addEventListener('click', () => setScreen('menu'));
 
 /*********************
- * HIGHSCORE STORAGE *
+ * REMOTE LEADERBOARD
  *********************/
+
+// Submit through the Edge Function (server-enforced 15s rate limit)
 async function submitScore(name, score) {
-  if (!sessionId) await startSession();
-  const res = await fetch(`${EDGE_FN}?action=submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId, name, score })
-  });
-  const json = await res.json();
-  if (!res.ok) {
-    if (json.error === "rate_limited") {
-      alert(`Too fast — try again in ${Math.ceil(json.retryMs/1000)}s`);
-    } else {
-      alert(json.error || "Submit failed");
+  try {
+    if (!sessionId) await startSession();
+    const res = await fetch(`${EDGE_FN}?action=submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, name, score })
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      if (json.error === "rate_limited") {
+        alert(`Too fast — try again in ${Math.ceil(json.retryMs/1000)}s`);
+      } else {
+        alert(json.error || "Submit failed");
+      }
+      return;
     }
+  } catch (err) {
+    console.error("[TTT] submitScore error:", err);
+    alert("Could not submit score (network?)");
   }
 }
 
-
-function todayKey() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `tt_scores_${y}-${m}-${day}`;
-}
-const ALLTIME_KEY = 'tt_alltime_top10';
-
-function loadTodayScores() {
-  try { return JSON.parse(localStorage.getItem(todayKey())) || []; }
-  catch { return []; }
-}
-function saveTodayScores(arr) { localStorage.setItem(todayKey(), JSON.stringify(arr)); }
-
-function loadAllTimeList() {
-  try { return JSON.parse(localStorage.getItem(ALLTIME_KEY)) || []; }
-  catch { return []; }
-}
-function saveAllTimeList(arr) { localStorage.setItem(ALLTIME_KEY, JSON.stringify(arr)); }
-
-function highscoreDestinations(sc) {
-  const today = loadTodayScores().sort((a,b)=>b.score - a.score);
-  const qualifiesToday = today.length < 10 || sc > (today[9]?.score ?? -Infinity);
-
-  const all = loadAllTimeList().sort((a,b)=>b.score - a.score);
-  const qualifiesAllTime = all.length < 10 || sc > (all[9]?.score ?? -Infinity);
-
-  return { today: qualifiesToday, alltime: qualifiesAllTime };
+// Public reads from Supabase REST on two views:
+//   - public.leaderboard_today
+//   - public.leaderboard_all_time
+async function getAllTimeTop10() {
+  const url = new URL(`${SUPABASE_URL}/rest/v1/leaderboard_all_time`);
+  url.searchParams.set("select", "name,score,created_at");
+  url.searchParams.set("limit", "10");
+  const res = await fetch(url, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+    }
+  });
+  if (!res.ok) throw new Error("Failed to fetch all-time leaderboard");
+  return res.json();
 }
 
-function commitScoreWithDestinations(sc, name, dest) {
-  const entry = { name, score: sc, date: Date.now() };
-
-  if (dest.today) {
-    const today = loadTodayScores();
-    today.push(entry);
-    today.sort((a,b)=>b.score - a.score);
-    saveTodayScores(today.slice(0, 10));
-  }
-
-  if (dest.alltime) {
-    const all = loadAllTimeList();
-    all.push(entry);
-    all.sort((a,b)=>b.score - a.score);
-    saveAllTimeList(all.slice(0, 10));
-  }
+async function getTodayTop10() {
+  const url = new URL(`${SUPABASE_URL}/rest/v1/leaderboard_today`);
+  url.searchParams.set("select", "name,score,created_at");
+  url.searchParams.set("limit", "10");
+  const res = await fetch(url, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+    }
+  });
+  if (!res.ok) throw new Error("Failed to fetch today leaderboard");
+  return res.json();
 }
 
-function renderTodayScores() {
+// Render helpers
+function liRow(left, right) {
+  const li = document.createElement('li');
+  li.innerHTML = `<span>${left}</span><span>${right}</span>`;
+  return li;
+}
+
+async function renderTodayScores() {
   scoresTitle.textContent = '🏆 High Scores (Today)';
-  const list = loadTodayScores().sort((a,b)=>b.score - a.score).slice(0, 10);
   scoresList.innerHTML = '';
-  if (list.length === 0) {
-    const li = document.createElement('li');
-    li.innerHTML = `<span>—</span><span>0</span>`;
-    scoresList.appendChild(li);
-    return;
-  }
-  for (const s of list) {
-    const li = document.createElement('li');
-    li.innerHTML = `<span>${s.name}</span><span>${s.score.toLocaleString()}</span>`;
-    scoresList.appendChild(li);
+  try {
+    const list = await getTodayTop10();
+    if (!list || list.length === 0) {
+      scoresList.appendChild(liRow('—', '0'));
+      return;
+    }
+    for (const s of list) {
+      scoresList.appendChild(liRow(escapeHtml(s.name || 'Player'), Number(s.score).toLocaleString()));
+    }
+  } catch (e) {
+    console.error("[TTT] renderTodayScores error:", e);
+    scoresList.appendChild(liRow('Network error', '—'));
   }
 }
 
-function renderAllTimeScores() {
+async function renderAllTimeScores() {
   scoresTitle.textContent = '🏆 Highest Scores (All Time)';
-  const list = loadAllTimeList().sort((a,b)=>b.score - a.score).slice(0, 10);
   scoresList.innerHTML = '';
-  if (list.length === 0) {
-    const li = document.createElement('li');
-    li.innerHTML = `<span>—</span><span>0</span>`;
-    scoresList.appendChild(li);
-    return;
+  try {
+    const list = await getAllTimeTop10();
+    if (!list || list.length === 0) {
+      scoresList.appendChild(liRow('—', '0'));
+      return;
+    }
+    for (const s of list) {
+      scoresList.appendChild(liRow(escapeHtml(s.name || 'Player'), Number(s.score).toLocaleString()));
+    }
+  } catch (e) {
+    console.error("[TTT] renderAllTimeScores error:", e);
+    scoresList.appendChild(liRow('Network error', '—'));
   }
-  for (const s of list) {
-    const li = document.createElement('li');
-    li.innerHTML = `<span>${s.name}</span><span>${s.score.toLocaleString()}</span>`;
-    scoresList.appendChild(li);
-  }
+}
+
+// Basic HTML escape (avoid weird names breaking layout)
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])
+  );
 }
 
 /*****************
