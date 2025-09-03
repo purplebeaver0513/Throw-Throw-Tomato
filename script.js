@@ -122,6 +122,18 @@ function clearMenuBackground() {
   mainMenu.style.backgroundImage = '';
 }
 
+let sessionId = null;
+
+async function startSession() {
+  const res = await fetch(`${EDGE_FN}?action=start`, { method: "POST" });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "start failed");
+  sessionId = json.sessionId;
+}
+
+startSession().catch(console.error);
+
+
 /**************
  * GAME STATE *
  **************/
