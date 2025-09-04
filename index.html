@@ -1,27 +1,24 @@
-<!DOCTYPE html>
-<html lang="en" >
-<head>
-  <meta charset="UTF-8">
-  <title>Throw Throw Tomato</title>
-  <link rel="stylesheet" href="./style.css">
-
-</head>
-<body>
-<!-- partial:index.partial.html -->
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <title>Throw Throw Tomato</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Safe defaults so you can see the canvas even if CSS fails */
+    html, body { height: 100%; margin: 0; }
+    .game-container { position: relative; width: 100%; height: 100%; overflow: hidden; }
+    #gameCanvas { display: block; width: 100%; height: 100%; background: #111; }
+  </style>
 </head>
 <body>
   <div class="game-container">
     <!-- Top-left buttons -->
     <div id="topButtons">
-      <button id="settingsBtn">⚙ </button>
-      <button id="updateLogBtn">📜 </button>
+      <button id="settingsBtn">⚙</button>
+      <button id="updateLogBtn">📜</button>
     </div>
 
     <!-- In-game HUD -->
@@ -43,13 +40,12 @@
     <!-- ====== MENUS & SCREENS ====== -->
 
     <!-- Main Menu -->
-    <!-- Main Menu -->
-<div id="mainMenu" class="overlay center-stack active">
-  <img id="titleLogo" alt="Throw Throw Tomato" src="https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/refs/heads/main/1000025560.png" />
-  <button id="playBtn" class="primary">Play</button>
-  <button id="openScoresBtn">High Scores</button>
-</div>
-
+    <div id="mainMenu" class="overlay center-stack active">
+      <img id="titleLogo" alt="Throw Throw Tomato"
+           src="https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/refs/heads/main/1000025560.png" />
+      <button id="playBtn" class="primary">Play</button>
+      <button id="openScoresBtn">High Scores</button>
+    </div>
 
     <!-- High Scores Screen -->
     <div id="highscoresScreen" class="overlay center-stack">
@@ -61,7 +57,7 @@
       </div>
     </div>
 
-    <!-- Name Entry (when you make today's or all-time board) -->
+    <!-- Name Entry -->
     <div id="nameEntry" class="overlay center-stack">
       <h2>🎉 New High Score!</h2>
       <div class="big-score">Your Score: <span id="finalScoreValue">0</span></div>
@@ -73,7 +69,7 @@
       </div>
     </div>
 
-    <!-- Not on board → Main Menu button -->
+    <!-- Not on board → Main Menu -->
     <div id="toMenuOverlay" class="overlay center-stack">
       <h2>Round Over</h2>
       <div class="big-score">Final Score: <span id="finalScoreValue2">0</span></div>
@@ -96,9 +92,9 @@
     <div id="updateLogPanel" class="overlay-panel">
       <h2>Update Log</h2>
       <div id="updateLogContent">
-        <p><strong>v1.0.4</strong> – Testing the new highscore. Highscores now will not be saved locally. It will be saved in the cloud </p>
-        <p><strong>v1.0.3</strong> – Added most of the visual assets to the game, fixed minor bugs, updated visual assets. </p>
-        <p><strong>v1.0.2</strong> – Added combo bar, added almost all of the visual assets even though none are being used right now. </p>
+        <p><strong>v1.0.4</strong> – Testing the new highscore. Highscores now will not be saved locally. It will be saved in the cloud.</p>
+        <p><strong>v1.0.3</strong> – Added most of the visual assets to the game, fixed minor bugs, updated visual assets.</p>
+        <p><strong>v1.0.2</strong> – Added combo bar, added almost all of the visual assets even though none are being used right now.</p>
         <p><strong>v1.0.1</strong> – Settings (music/SFX), Update Log, daily & all-time Top 10, bonus round prompt, moving targets spawn from left side, target popups, name entry flow.</p>
         <p><strong>v1.0.0</strong> – Initial release: targets (3 tiers), tomatoes from center, bonus farmer with multipliers, green spawn band.</p>
       </div>
@@ -109,11 +105,7 @@
     <div id="versionLabel">v1.0.4</div>
   </div>
 
-  <script src="game.js"></script>
-</body>
-</html>
-<!-- partial -->
-  <script  src="./script.js"></script>
-
+  <!-- Load your game code last; use defer -->
+  <script src="script.js" defer></script>
 </body>
 </html>
