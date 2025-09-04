@@ -1,25 +1,23 @@
 <!DOCTYPE html>
-
-<!-- partial:index.partial.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <title>Throw Throw Tomato</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
+
 </head>
   
 <body>
   <div class="game-container">
     <!-- Top-left buttons -->
     <div id="topButtons">
-      <button id="settingsBtn">⚙ </button>
-      <button id="updateLogBtn">📜 </button>
+      <button id="settingsBtn">⚙️</button>
+      <button id="updateLogBtn">📜</button>
     </div>
 
     <!-- In-game HUD -->
-    <div id="ui">
+    <div id="ui" class="hide">
       <div id="timer">Time: 20</div>
       <div id="score">Score: 0</div>
       <button id="pauseBtn" type="button">Pause</button>
@@ -31,19 +29,15 @@
     <!-- Countdown overlay -->
     <div id="countdown"></div>
 
-    <!-- (Legacy) Final Score badge (not used by menus, kept for convenience) -->
+    <!-- Final Score badge -->
     <div id="finalScore"></div>
 
-    <!-- ====== MENUS & SCREENS ====== -->
-
     <!-- Main Menu -->
-    <!-- Main Menu -->
-<div id="mainMenu" class="overlay center-stack active">
-  <img id="titleLogo" alt="Throw Throw Tomato" src="https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/refs/heads/main/1000025560.png" />
-  <button id="playBtn" class="primary">Play</button>
-  <button id="openScoresBtn">High Scores</button>
-</div>
-
+    <div id="mainMenu" class="overlay center-stack active">
+      <img id="titleLogo" alt="Throw Throw Tomato" src="https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/refs/heads/main/1000025560.png" />
+      <button id="playBtn" class="primary">Play</button>
+      <button id="openScoresBtn">High Scores</button>
+    </div>
 
     <!-- High Scores Screen -->
     <div id="highscoresScreen" class="overlay center-stack">
@@ -55,7 +49,7 @@
       </div>
     </div>
 
-    <!-- Name Entry (when you make today's or all-time board) -->
+    <!-- Name Entry -->
     <div id="nameEntry" class="overlay center-stack">
       <h2>🎉 New High Score!</h2>
       <div class="big-score">Your Score: <span id="finalScoreValue">0</span></div>
@@ -103,7 +97,4 @@
     <div id="versionLabel">v1.0.4</div>
   </div>
 
-  <script src="script.js" defer></script>
-</body>
-<!-- partial -->
 </html>
