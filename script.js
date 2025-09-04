@@ -1,4 +1,4 @@
-yes please and heres my js code (   /*************************
+/*************************
  * Throw Throw Tomato JS *
  *************************/
 
@@ -121,18 +121,6 @@ function clearMenuBackground() {
   if (!mainMenu) return;
   mainMenu.style.backgroundImage = '';
 }
-
-let sessionId = null;
-
-async function startSession() {
-  const res = await fetch(`${EDGE_FN}?action=start`, { method: "POST" });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error || "start failed");
-  sessionId = json.sessionId;
-}
-
-startSession().catch(console.error);
-
 
 /**************
  * GAME STATE *
@@ -791,24 +779,6 @@ toMenuBtn.addEventListener('click', () => setScreen('menu'));
 /*********************
  * HIGHSCORE STORAGE *
  *********************/
-async function submitScore(name, score) {
-  if (!sessionId) await startSession();
-  const res = await fetch(`${EDGE_FN}?action=submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId, name, score })
-  });
-  const json = await res.json();
-  if (!res.ok) {
-    if (json.error === "rate_limited") {
-      alert(`Too fast — try again in ${Math.ceil(json.retryMs/1000)}s`);
-    } else {
-      alert(json.error || "Submit failed");
-    }
-  }
-}
-
-
 function todayKey() {
   const d = new Date();
   const y = d.getFullYear();
@@ -902,4 +872,4 @@ setScreen('menu'); // applies menu background to overlay
   try { if (playBtn) playBtn.disabled = true; IMGS = await loadImages(ASSETS); }
   catch(err){ console.warn('[TTT] Asset load issue (using shape fallbacks):', err); }
   finally { if (playBtn) playBtn.disabled = false; }
-})();      ) can I have all of the js including the things you told me to add
+})();
