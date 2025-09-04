@@ -816,36 +816,6 @@ async function submitScore(name, score) {
   }
 }
 
-// Public reads from Supabase REST on two views:
-//   - public.leaderboard_today
-//   - public.leaderboard_all_time
-async function getAllTimeTop10() {
-  const url = new URL(`${SUPABASE_URL}/rest/v1/leaderboard_all_time`);
-  url.searchParams.set("select", "name,score,created_at");
-  url.searchParams.set("limit", "10");
-  const res = await fetch(url, {
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-    }
-  });
-  if (!res.ok) throw new Error("Failed to fetch all-time leaderboard");
-  return res.json();
-}
-
-async function getTodayTop10() {
-  const url = new URL(`${SUPABASE_URL}/rest/v1/leaderboard_today`);
-  url.searchParams.set("select", "name,score,created_at");
-  url.searchParams.set("limit", "10");
-  const res = await fetch(url, {
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-    }
-  });
-  if (!res.ok) throw new Error("Failed to fetch today leaderboard");
-  return res.json();
-}
 
 // Render helpers
 function liRow(left, right) {
