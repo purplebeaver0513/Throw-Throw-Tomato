@@ -563,7 +563,7 @@ function update() {
     }
     for (const tm of tomatoes) tm.update();
     for (let i = popups.length - 1; i >= 0; i--) { const p = popups[i]; p.update(); if (p.dead) popups.splice(i,1); }
-    for (let i = splats.length - 1; i--) { const s = splats[i]; s.update(); if (s.dead) splats.splice(i,1); }
+    for (let i = splats.length - 1; i >=0; i--) { const s = splats[i]; s.update(); if (s.dead) splats.splice(i,1); }
   }
 
   // Draw
