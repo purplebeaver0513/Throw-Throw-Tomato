@@ -82,7 +82,7 @@ const musicVolumeSlider = document.getElementById('musicVolume');
 const sfxVolumeSlider = document.getElementById('sfxVolume');
 
 /************************
- * CANVAS SIZE (exact) *
+ * CANVAS SIZE (exact)
  ************************/
 const LOGICAL_W = 1800;
 const LOGICAL_H = 600;
@@ -97,7 +97,7 @@ setExactCanvasSize();
 window.addEventListener('resize', setExactCanvasSize);
 
 /**********************************
- * MENU BACKGROUND (no center image)
+ * MENU BACKGROUND (no center logo)
  **********************************/
 function applyMenuBackground() {
   if (!mainMenu) return;
@@ -130,8 +130,8 @@ let inBonusRound = false;
 let bonusFarmer = null;
 let showBonusPrompt = false;
 
-let animId = null;          // RAF loop
-let gameInterval = null;    // 1s tick
+let animId = null;        // RAF loop
+let gameInterval = null;  // 1s tick
 let countdownActive = false;
 let countdownTimerId = null;
 
@@ -216,15 +216,13 @@ class Tomato {
   update() {
     const dx = this.targetX - this.x, dy = this.targetY - this.y;
     const dist = Math.hypot(dx, dy);
-    if (dist > this.speed) {
-      this.x += (dx / dist) * this.speed;
-      this.y += (dy / dist) * this.speed;
-    } else {
-      this.hit();
-    }
+    if (dist > this.speed) { this.x += (dx / dist) * this.speed; this.y += (dy / dist) * this.speed; }
+    else { this.hit(); }
   }
   hit() {
     let awarded = false;
+
+    // regular targets
     for (let i = targets.length - 1; i >= 0; i--) {
       const t = targets[i];
       if (t && Math.hypot(this.x - t.x, this.y - t.y) < t.radius + this.radius) {
@@ -238,14 +236,18 @@ class Tomato {
         break;
       }
     }
+
+    // farmer
     if (!awarded && inBonusRound && bonusFarmer) {
       const hb = bonusFarmer.hitbox, fb = bonusFarmer.bodyBox;
       const onHead = (this.x > hb.x && this.x < hb.x + hb.width && this.y > hb.y && this.y < hb.y + hb.height);
       const onBody = (this.x > fb.x && this.x < fb.x + fb.width && this.y > fb.y && this.y < fb.y + fb.height);
+
       if (onHead) {
         if (!bonusFarmer.headHits) {
           const pts = applyComboAndReturnPoints(100, hb.x + hb.width/2, hb.y - 8);
-          score += pts; popups.push(new Popup(hb.x + hb.width/2, hb.y - 8, `+${pts}`, '#e11d48'));
+          score += pts;
+          popups.push(new Popup(hb.x + hb.width/2, hb.y - 8, `+${pts}`, '#e11d48'));
         } else {
           score = Math.floor(score * 2);
           popups.push(new Popup(hb.x + hb.width/2, hb.y - 8, 'x2!', '#e11d48'));
@@ -258,7 +260,8 @@ class Tomato {
       } else if (onBody) {
         if (!bonusFarmer.bodyHits) {
           const pts = applyComboAndReturnPoints(50, fb.x + fb.width/2, fb.y + fb.height/2);
-          score += pts; popups.push(new Popup(fb.x + fb.width/2, fb.y + fb.height/2, `+${pts}`, '#1d4ed8'));
+          score += pts;
+          popups.push(new Popup(fb.x + fb.width/2, fb.y + fb.height/2, `+${pts}`, '#1d4ed8'));
         } else {
           score = Math.floor(score * 1.5);
           popups.push(new Popup(fb.x + fb.width/2, fb.y + fb.height/2, 'x1.5!', '#1d4ed8'));
@@ -270,7 +273,9 @@ class Tomato {
         awarded = true;
       }
     }
-    const idx = tomatoes.indexOf(this); if (idx !== -1) tomatoes.splice(idx, 1);
+
+    const idx = tomatoes.indexOf(this);
+    if (idx !== -1) tomatoes.splice(idx, 1);
   }
   draw() {
     if (IMGS && IMGS.tomato) {
@@ -358,7 +363,6 @@ class Farmer {
     if (!this.active) return;
 
     this.t++; this.phaseTimer++;
-
     const bob = Math.sin(this.t * 0.25) * 2;
 
     if (this.phase === 'enter') {
@@ -369,8 +373,7 @@ class Farmer {
       this.y = this.poseY + Math.sin(this.t * 0.15) * 1.0;
       if (this.phaseTimer > 180) { this.phase = 'exit'; this.phaseTimer = 0; }
     } else if (this.phase === 'exit') {
-      this.y += 1.6;
-      this.x += 0.4;
+      this.y += 1.6; this.x += 0.4;
       if (this.y > LOGICAL_H + 40) endBonusRound();
     }
   }
@@ -405,7 +408,6 @@ function drawBackground() {
   const img = IMGS && IMGS.gameBg;
   if (!img) return;
 
-  // cover
   const canvasW = LOGICAL_W, canvasH = LOGICAL_H;
   const imgW = img.width, imgH = img.height;
   const canvasAR = canvasW / canvasH, imgAR = imgW / imgH;
@@ -425,7 +427,7 @@ function drawComboBar() {
   if (comboCount <= 0) return;
   const now = performance.now(), elapsed = now - lastHitTime, remain = Math.max(0, COMBO_TIMEOUT - elapsed);
   const pct = Math.max(0, Math.min(1, remain / COMBO_TIMEOUT));
-  const x = LOGICAL_W/2 - 260, y = 14, w = 520, h = 18;
+  const x = LOGICAL_W / 2 - 260, y = 14, w = 520, h = 18;
 
   ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(x,y,w,h);
   ctx.fillStyle = comboCount >= 5 ? '#f59e0b' : '#3b82f6'; ctx.fillRect(x,y,w*pct,h);
