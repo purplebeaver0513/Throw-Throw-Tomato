@@ -9,8 +9,7 @@ const ASSETS = {
   // Fullscreen menu background (hero image)
   menuFullBg: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025560.png",
 
-  // Logo (smaller, transparent PNG recommended)
-  // Replace with your actual small logo path if different
+  // Logo (smaller, transparent PNG recommended). Fallback handled below.
   logo: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/logo_small.png",
 
   // Gameplay background (cover)
@@ -59,6 +58,8 @@ const ctx = canvas.getContext('2d');
 const timerDisplay = document.getElementById('timer');
 const scoreDisplay = document.getElementById('score');
 const pauseBtn = document.getElementById('pauseBtn');
+const stopBtn = document.getElementById('stopBtn');
+const exitBtn = document.getElementById('exitBtn');
 const countdownDiv = document.getElementById('countdown');
 const finalScoreDiv = document.getElementById('finalScore');
 
@@ -89,6 +90,8 @@ const settingsPanel = document.getElementById('settingsPanel');
 const updateLogPanel = document.getElementById('updateLogPanel');
 const closeSettings = document.getElementById('closeSettings');
 const closeUpdateLog = document.getElementById('closeUpdateLog');
+const closeSettingsX = document.getElementById('closeSettingsX');
+const closeUpdateLogX = document.getElementById('closeUpdateLogX');
 const musicVolumeSlider = document.getElementById('musicVolume');
 const sfxVolumeSlider = document.getElementById('sfxVolume');
 
@@ -110,19 +113,54 @@ window.addEventListener('resize', setExactCanvasSize);
 /**********************************
  * MENU BACKGROUND & LOGO
  **********************************/
+function buildFallbackLogoDataURI() {
+  const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="900" height="220" viewBox="0 0 900 220">
+    <defs>
+      <linearGradient id="g" x1="0" x2="1">
+        <stop offset="0" stop-color="#ff7a7a"/>
+        <stop offset="1" stop-color="#ff3b3b"/>
+      </linearGradient>
+      <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity=".35"/>
+      </filter>
+    </defs>
+    <rect fill="none" width="100%" height="100%"/>
+    <text x="50%" y="54%" text-anchor="middle"
+          font-family="Nunito, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"
+          font-size="64" font-weight="900" fill="url(#g)" stroke="#111" stroke-width="2" filter="url(#shadow)">
+      THROW THROW TOMATO
+    </text>
+    <text x="50%" y="86%" text-anchor="middle"
+          font-family="Nunito, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"
+          font-size="20" font-weight="800" fill="#fff" opacity=".9">
+      tap to splat • combos score extra
+    </text>
+  </svg>`;
+  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+}
+function setMenuLogo() {
+  if (!titleLogoImg) return;
+  const tryImg = new Image();
+  tryImg.crossOrigin = "anonymous";
+  tryImg.onload = () => { titleLogoImg.src = ASSETS.logo; };
+  tryImg.onerror = () => { titleLogoImg.src = buildFallbackLogoDataURI(); };
+  tryImg.src = ASSETS.logo;
+
+  titleLogoImg.alt = "Throw Throw Tomato";
+  titleLogoImg.style.maxWidth = "360px";
+  titleLogoImg.style.width = "min(80vw, 360px)";
+  titleLogoImg.style.marginBottom = "28px";
+  titleLogoImg.style.display = "block";
+}
+
 function applyMenuBackground() {
   if (!mainMenu) return;
   mainMenu.style.backgroundImage = `url('${ASSETS.menuFullBg}')`;
   mainMenu.style.backgroundSize = 'cover';
   mainMenu.style.backgroundRepeat = 'no-repeat';
   mainMenu.style.backgroundPosition = 'center center';
-  if (titleLogoImg) {
-    // Use a separate small logo so we don't duplicate the background image
-    titleLogoImg.src = ASSETS.logo;
-    titleLogoImg.alt = "Throw Throw Tomato Logo";
-    titleLogoImg.style.maxWidth = '320px';
-    titleLogoImg.style.marginBottom = '30px';
-  }
+  setMenuLogo(); // set or fallback the logo
 }
 function clearMenuBackground() {
   if (!mainMenu) return;
@@ -614,11 +652,10 @@ function update() {
  * GAME LIFECYCLE
  *****************/
 function startGame() {
-  // Close panels, ensure HUD visible
-  if (settingsPanel) settingsPanel.style.display = 'none';
-  if (updateLogPanel) updateLogPanel.style.display = 'none';
+  // Close panels
+  settingsPanel.style.display = 'none';
+  updateLogPanel.style.display = 'none';
 
-  // Leaving menu → remove overlay background
   clearMenuBackground();
 
   // Cancel any existing RAF + interval to avoid speed up
@@ -698,6 +735,34 @@ function endBonusRound() {
   }
 }
 
+/** NEW: hard stop & exit helpers **/
+function cleanupGameLoops() {
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  if (gameInterval) { clearInterval(gameInterval); gameInterval = null; }
+}
+function stopRound(showScoreOverlay = true) {
+  // Stop timers/loops and mark as over
+  cleanupGameLoops();
+  isGameOver = true;
+  isGameStarted = false;
+  inBonusRound = false;
+  bonusFarmer = null;
+
+  if (showScoreOverlay) {
+    finalScoreValue2.textContent = score.toLocaleString();
+    setScreen('toMenuOverlay');
+  }
+}
+function exitToMenu() {
+  // Stop everything and go to menu without score overlay
+  cleanupGameLoops();
+  isGameOver = false;
+  isGameStarted = false;
+  inBonusRound = false;
+  bonusFarmer = null;
+  setScreen('menu');
+}
+
 /*********************
  * INPUT & UI EVENTS
  *********************/
@@ -717,12 +782,26 @@ pauseBtn.addEventListener('click', () => {
   isPaused = !isPaused;
   pauseBtn.textContent = isPaused ? 'Resume' : 'Pause';
 });
+stopBtn.addEventListener('click', () => {
+  if (!isGameStarted) return;
+  stopRound(true); // show score overlay
+});
+exitBtn.addEventListener('click', () => {
+  // Exit immediately to main menu (no score overlay)
+  exitToMenu();
+});
 
-// Panels
+// Panels (open)
 settingsBtn.addEventListener('click', () => { settingsPanel.style.display = 'block'; });
-closeSettings.addEventListener('click', () => { settingsPanel.style.display = 'none'; });
 updateLogBtn.addEventListener('click', () => { updateLogPanel.style.display = 'block'; });
-closeUpdateLog.addEventListener('click', () => { updateLogPanel.style.display = 'none'; });
+
+// Panels (close via “Close” button or “×”)
+function hideSettings() { settingsPanel.style.display = 'none'; }
+function hideUpdateLog() { updateLogPanel.style.display = 'none'; }
+closeSettings.addEventListener('click', hideSettings);
+closeSettingsX.addEventListener('click', hideSettings);
+closeUpdateLog.addEventListener('click', hideUpdateLog);
+closeUpdateLogX.addEventListener('click', hideUpdateLog);
 
 // Volume sliders (hooks)
 musicVolumeSlider.addEventListener('input', (e) => { musicVolume = parseFloat(e.target.value); });
@@ -750,8 +829,8 @@ function setScreen(screen) {
     case 'menu':
       mainMenu.classList.add('active');
       applyMenuBackground(); // background + logo
-      // optional: stop RAF when not in game
-      if (animId) { cancelAnimationFrame(animId); animId = null; }
+      // Stop any running loops safely if arriving here
+      cleanupGameLoops();
       isGameStarted = false;
       break;
     case 'scores':
