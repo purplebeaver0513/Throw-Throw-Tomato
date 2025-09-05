@@ -6,10 +6,14 @@
  * ASSETS
  * ============================ */
 const ASSETS = {
-  // Main menu background (applied to #mainMenu overlay)
+  // Fullscreen menu background (hero image)
   menuFullBg: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025560.png",
 
-  // Gameplay background (full canvas, "cover")
+  // Logo (smaller, transparent PNG recommended)
+  // Replace with your actual small logo path if different
+  logo: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/logo_small.png",
+
+  // Gameplay background (cover)
   gameBg: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025608.png",
 
   // Projectiles & effects
@@ -35,9 +39,7 @@ function loadImages(manifest) {
   let done = 0;
 
   return new Promise((resolve) => {
-    const finish = () => {
-      if (++done === entries.length) resolve(images);
-    };
+    const finish = () => { if (++done === entries.length) resolve(images); };
     entries.forEach(([key, url]) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
@@ -53,6 +55,7 @@ function loadImages(manifest) {
  **************/
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+
 const timerDisplay = document.getElementById('timer');
 const scoreDisplay = document.getElementById('score');
 const pauseBtn = document.getElementById('pauseBtn');
@@ -60,6 +63,7 @@ const countdownDiv = document.getElementById('countdown');
 const finalScoreDiv = document.getElementById('finalScore');
 
 const mainMenu = document.getElementById('mainMenu');
+const titleLogoImg = document.getElementById('titleLogo');
 const playBtn = document.getElementById('playBtn');
 const openScoresBtn = document.getElementById('openScoresBtn');
 
@@ -88,8 +92,6 @@ const closeUpdateLog = document.getElementById('closeUpdateLog');
 const musicVolumeSlider = document.getElementById('musicVolume');
 const sfxVolumeSlider = document.getElementById('sfxVolume');
 
-const titleLogoImg = document.getElementById('titleLogo');
-
 /************************
  * CANVAS SIZE (exact) *
  ************************/
@@ -106,7 +108,7 @@ setExactCanvasSize();
 window.addEventListener('resize', setExactCanvasSize);
 
 /**********************************
- * MENU BACKGROUND ON OVERLAY
+ * MENU BACKGROUND & LOGO
  **********************************/
 function applyMenuBackground() {
   if (!mainMenu) return;
@@ -114,6 +116,13 @@ function applyMenuBackground() {
   mainMenu.style.backgroundSize = 'cover';
   mainMenu.style.backgroundRepeat = 'no-repeat';
   mainMenu.style.backgroundPosition = 'center center';
+  if (titleLogoImg) {
+    // Use a separate small logo so we don't duplicate the background image
+    titleLogoImg.src = ASSETS.logo;
+    titleLogoImg.alt = "Throw Throw Tomato Logo";
+    titleLogoImg.style.maxWidth = '320px';
+    titleLogoImg.style.marginBottom = '30px';
+  }
 }
 function clearMenuBackground() {
   if (!mainMenu) return;
@@ -546,7 +555,7 @@ function update() {
   ctx.fillRect(bandX, 0, SPAWN_PAD, LOGICAL_H);
   ctx.fillRect(bandX + bandW - SPAWN_PAD, 0, SPAWN_PAD, LOGICAL_H);
 
-  // Update (safe-guarded)
+  // Update
   if (!isPaused) {
     if (inBonusRound && bonusFarmer) {
       bonusFarmer.update();
@@ -605,11 +614,14 @@ function update() {
  * GAME LIFECYCLE
  *****************/
 function startGame() {
+  // Close panels, ensure HUD visible
   if (settingsPanel) settingsPanel.style.display = 'none';
   if (updateLogPanel) updateLogPanel.style.display = 'none';
 
+  // Leaving menu → remove overlay background
   clearMenuBackground();
 
+  // Cancel any existing RAF + interval to avoid speed up
   if (animId) { cancelAnimationFrame(animId); animId = null; }
   if (gameInterval) { clearInterval(gameInterval); gameInterval = null; }
 
@@ -737,7 +749,7 @@ function setScreen(screen) {
   switch (screen) {
     case 'menu':
       mainMenu.classList.add('active');
-      applyMenuBackground(); // put bg inside the overlay
+      applyMenuBackground(); // background + logo
       // optional: stop RAF when not in game
       if (animId) { cancelAnimationFrame(animId); animId = null; }
       isGameStarted = false;
@@ -864,7 +876,7 @@ function renderAllTimeScores() {
 /*****************
  * INITIAL BOOT *
  *****************/
-setScreen('menu'); // applies menu background to overlay
+setScreen('menu'); // applies menu background + logo on overlay
 
 // Boot images; never block Play if something fails
 (async function boot(){
