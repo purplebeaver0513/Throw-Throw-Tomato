@@ -9,43 +9,77 @@
   <!-- Your main stylesheet -->
   <link rel="stylesheet" href="style.css">
   <style>
-    /* keep title buttons above overlays */
+    /* Keep title buttons above overlays */
     #topButtons { z-index: 1000; }
 
-    /* stronger close "×" */
+    /* Panel header + visible close X (black glyph, red outline) */
     .panel-header {
       display:flex; align-items:center; justify-content:space-between;
       margin-bottom:12px;
     }
     .close-x {
-      background:#ff4d4d;   /* red background */
-      color:#000;           /* black glyph */
-      border:none; font-size:22px; line-height:1;
-      cursor:pointer; padding:2px 10px; border-radius:8px;
+      background:#fff;
+      color:#000;              /* black glyph */
+      border:2px solid #ff4d4d;/* red outline */
+      font-size:22px; line-height:1;
+      cursor:pointer; padding:2px 10px;
+      border-radius:8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.2);
     }
-    .close-x:hover { filter: brightness(0.9); }
+    .close-x:hover { filter:brightness(0.95); }
 
-    /* make overlay panels scrollable inside */
+    /* Make overlay panels scrollable inside, with consistent layout */
     .overlay-panel {
+      /* base sizes come from your CSS; add scroll-friendly layout */
       max-height: 80vh;
-      overflow: hidden;        /* outer container hides, inner scrolls */
+      overflow: hidden;
+      display: none;           /* JS sets to 'flex' on open */
       flex-direction: column;  /* header / content / footer vertical */
     }
     .overlay-panel .panel-content {
       flex: 1 1 auto;
       overflow-y: auto;
-      padding-right: 6px; /* room for scrollbar */
+      padding-right: 6px; /* space for scrollbar */
     }
     .overlay-panel .panel-footer {
       margin-top: 12px;
-      display: flex; gap: 8px; justify-content: flex-end;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    /* Aligned volume sliders (labels + rails start/end together) */
+    .overlay-panel label {
+      display: grid;
+      grid-template-columns: 1fr 240px;
+      align-items: center;
+      gap: 12px;
+      margin: 12px 0;
+    }
+    .overlay-panel input[type="range"] {
+      width: 100%;
     }
 
     /* HUD control row */
-    #hudControls { margin-top: 8px; display: flex; gap: 8px; justify-content: flex-end; }
+    #hudControls {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
 
-    /* Move version label to bottom-left (your base CSS positions it absolute) */
-    #versionLabel { left: 10px; right: auto; }
+    /* Version label bottom-left, high z-index, readable */
+    #versionLabel {
+      left: 10px !important;
+      right: auto !important;
+      bottom: 10px;
+      position: absolute;
+      z-index: 1200;           /* above overlays */
+      color: rgba(255,255,255,0.95);
+      font-weight: 800;
+      text-shadow: 0 1px 2px rgba(0,0,0,.6);
+      pointer-events: none;    /* never blocks clicks */
+    }
   </style>
 </head>
 <body>
@@ -75,10 +109,8 @@
     <!-- Final Score badge (compat container) -->
     <div id="finalScore"></div>
 
-    <!-- Main Menu -->
+    <!-- Main Menu (no center logo/image) -->
     <div id="mainMenu" class="overlay center-stack active">
-      <!-- Logo is set by JS (with no-text fallback) -->
-      <img id="titleLogo" alt="Throw Throw Tomato Logo" />
       <button id="playBtn" class="primary">Play</button>
       <button id="openScoresBtn">High Scores</button>
     </div>
@@ -138,10 +170,10 @@
         <button id="closeUpdateLogX" class="close-x" title="Close">×</button>
       </div>
       <div class="panel-content" id="updateLogContent">
-        <p><strong>v1.0.8</strong> – Version bottom-left; scrollable panels; Exit disabled during countdown; removed Stop.</p>
-        <p><strong>v1.0.7</strong> – Close “×” is black on red; removed fallback title text.</p>
-        <p><strong>v1.0.6</strong> – Settings/Update Log visible on title; Pause/Exit; overlay display fix.</p>
-        <p><strong>v1.0.5</strong> – Separate logo & background (no duplicate image).</p>
+        <p><strong>v.1.0.8</strong> – Version bottom-left; scrollable panels; Exit disabled during countdown; removed Stop.</p>
+        <p><strong>v.1.0.7</strong> – Close “×” black with red outline; removed fallback title text.</p>
+        <p><strong>v.1.0.6</strong> – Settings/Update Log visible on title; Pause/Exit; overlay display fix.</p>
+        <p><strong>v.1.0.5</strong> – Separate logo & background (no duplicate image).</p>
         <!-- Add more history; this area scrolls -->
       </div>
       <div class="panel-footer">
@@ -150,7 +182,7 @@
     </div>
 
     <!-- Version Number (bottom-left) -->
-    <div id="versionLabel">V.1.0.8</div>
+    <div id="versionLabel">v.1.0.8</div>
   </div>
 
   <script src="script.js" defer></script>
