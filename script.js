@@ -46,7 +46,6 @@ const ctx = canvas.getContext('2d');
 const timerDisplay = document.getElementById('timer');
 const scoreDisplay = document.getElementById('score');
 const pauseBtn = document.getElementById('pauseBtn');
-const stopBtn = document.getElementById('stopBtn');
 const exitBtn = document.getElementById('exitBtn');
 const countdownDiv = document.getElementById('countdown');
 const finalScoreDiv = document.getElementById('finalScore');
@@ -102,28 +101,24 @@ window.addEventListener('resize', setExactCanvasSize);
  * MENU BACKGROUND & LOGO
  **********************************/
 function buildFallbackLogoDataURI() {
+  // No text — simple tomato icon fallback
   const svg = `
-  <svg xmlns="http://www.w3.org/2000/svg" width="900" height="220" viewBox="0 0 900 220">
+  <svg xmlns="http://www.w3.org/2000/svg" width="360" height="160" viewBox="0 0 360 160">
     <defs>
-      <linearGradient id="g" x1="0" x2="1">
-        <stop offset="0" stop-color="#ff7a7a"/>
-        <stop offset="1" stop-color="#ff3b3b"/>
-      </linearGradient>
-      <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <filter id="s" x="-20%" y="-20%" width="140%" height="140%">
         <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity=".35"/>
       </filter>
     </defs>
     <rect fill="none" width="100%" height="100%"/>
-    <text x="50%" y="54%" text-anchor="middle"
-          font-family="Nunito, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"
-          font-size="64" font-weight="900" fill="url(#g)" stroke="#111" stroke-width="2" filter="url(#shadow)">
-      THROW THROW TOMATO
-    </text>
-    <text x="50%" y="86%" text-anchor="middle"
-          font-family="Nunito, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"
-          font-size="20" font-weight="800" fill="#fff" opacity=".9">
-      tap to splat • combos score extra
-    </text>
+    <!-- tomato body -->
+    <ellipse cx="180" cy="90" rx="110" ry="68" fill="#ff3b3b" filter="url(#s)"/>
+    <!-- highlight -->
+    <ellipse cx="150" cy="70" rx="30" ry="18" fill="rgba(255,255,255,0.35)"/>
+    <!-- stem -->
+    <path d="M180,42 c-14,-18 -22,-20 -26,-20 10,10 8,18 4,24
+             M180,42 c14,-18 22,-20 26,-20 -10,10 -8,18 -4,24"
+          stroke="#216e39" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <circle cx="180" cy="42" r="10" fill="#2aa745"/>
   </svg>`;
   return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
 }
@@ -148,7 +143,7 @@ function applyMenuBackground() {
   mainMenu.style.backgroundSize = 'cover';
   mainMenu.style.backgroundRepeat = 'no-repeat';
   mainMenu.style.backgroundPosition = 'center center';
-  setMenuLogo(); // set or fallback the logo
+  setMenuLogo(); // set or fallback the logo (no text)
 }
 function clearMenuBackground() {
   if (!mainMenu) return;
@@ -176,6 +171,8 @@ let showBonusPrompt = false;
 
 let gameInterval = null;
 let animId = null; // SINGLE RAF LOOP ID
+let countdownActive = false;   // NEW: track countdown
+let countdownTimerId = null;   // NEW: track interval ID
 
 let musicVolume = 1.0;
 let sfxVolume = 1.0;
@@ -191,18 +188,13 @@ const COMBO_TIMEOUT = 1750;
  * HELPERS & SPAWN *
  ********************/
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min) + min); }
-
 const SPAWN_BAND_LEFT_RATIO = 0.30;
 const SPAWN_BAND_WIDTH_RATIO = 0.40;
-
 const SPAWN_AREA_X = () =>
   (canvas.width / (window.devicePixelRatio || 1)) * SPAWN_BAND_LEFT_RATIO;
-
 const SPAWN_AREA_W = () =>
   (canvas.width / (window.devicePixelRatio || 1)) * SPAWN_BAND_WIDTH_RATIO;
-
 const SPAWN_PAD = 40;
-
 function buildMiddleLanes(count = 5) {
   const left = SPAWN_AREA_X() + SPAWN_PAD;
   const right = SPAWN_AREA_X() + SPAWN_AREA_W() - SPAWN_PAD;
@@ -271,39 +263,28 @@ class Tomato {
   }
   hit() {
     let awarded = false;
-
-    // regular targets
+    // targets
     for (let i = targets.length - 1; i >= 0; i--) {
       const t = targets[i];
       if (t && Math.hypot(this.x - t.x, this.y - t.y) < t.radius + this.radius) {
-        const basePoints = t.points;
-        const pointsWithCombo = applyComboAndReturnPoints(basePoints, t.x, t.y - 10);
-
-        score += pointsWithCombo;
+        const pts = applyComboAndReturnPoints(t.points, t.x, t.y - 10);
+        score += pts;
         scoreDisplay.innerText = `Score: ${score.toLocaleString()}`;
-
-        popups.push(new Popup(t.x, t.y - 10, `+${pointsWithCombo}`, '#111'));
+        popups.push(new Popup(t.x, t.y - 10, `+${pts}`, '#111'));
         splats.push(new Splat(t.x, t.y - 6, 'tomatoSplat', 44, 1.0));
-
         targets.splice(i, 1);
-        awarded = true;
-        break;
+        awarded = true; break;
       }
     }
-
     // farmer
     if (!awarded && inBonusRound && bonusFarmer) {
-      const hb = bonusFarmer.hitbox;
-      const fb = bonusFarmer.bodyBox;
+      const hb = bonusFarmer.hitbox, fb = bonusFarmer.bodyBox;
       const onHead = (this.x > hb.x && this.x < hb.x + hb.width && this.y > hb.y && this.y < hb.y + hb.height);
       const onBody = (this.x > fb.x && this.x < fb.x + fb.width && this.y > fb.y && this.y < fb.y + fb.height);
-
       if (onHead) {
         if (!bonusFarmer.headHits) {
-          const base = 100;
-          const pts = applyComboAndReturnPoints(base, hb.x + hb.width/2, hb.y - 8);
-          score += pts;
-          popups.push(new Popup(hb.x + hb.width/2, hb.y - 8, `+${pts}`, '#e11d48'));
+          const pts = applyComboAndReturnPoints(100, hb.x + hb.width/2, hb.y - 8);
+          score += pts; popups.push(new Popup(hb.x + hb.width/2, hb.y - 8, `+${pts}`, '#e11d48'));
         } else {
           score = Math.floor(score * 2);
           popups.push(new Popup(hb.x + hb.width/2, hb.y - 8, 'x2!', '#e11d48'));
@@ -315,10 +296,8 @@ class Tomato {
         awarded = true;
       } else if (onBody) {
         if (!bonusFarmer.bodyHits) {
-          const base = 50;
-          const pts = applyComboAndReturnPoints(base, fb.x + fb.width/2, fb.y + fb.height/2);
-          score += pts;
-          popups.push(new Popup(fb.x + fb.width/2, fb.y + fb.height/2, `+${pts}`, '#1d4ed8'));
+          const pts = applyComboAndReturnPoints(50, fb.x + fb.width/2, fb.y + fb.height/2);
+          score += pts; popups.push(new Popup(fb.x + fb.width/2, fb.y + fb.height/2, `+${pts}`, '#1d4ed8'));
         } else {
           score = Math.floor(score * 1.5);
           popups.push(new Popup(fb.x + fb.width/2, fb.y + fb.height/2, 'x1.5!', '#1d4ed8'));
@@ -330,7 +309,6 @@ class Tomato {
         awarded = true;
       }
     }
-
     const idx = tomatoes.indexOf(this); if (idx !== -1) tomatoes.splice(idx, 1);
   }
   draw() {
@@ -351,25 +329,24 @@ class Target {
   constructor(tier = 1) {
     this.radius = 30;
     this.tier = tier;
-    this.points = 10;
-    this.speedX = 0;
+    this.points = tier === 1 ? 10 : tier === 2 ? 20 : 50;
+    this.speedX = tier === 1 ? 0 : (tier === 2 ? 1.2 : 2.1);
 
     const leftInside = SPAWN_AREA_X() + SPAWN_PAD + this.radius;
 
     if (tier === 1) {
       const lanes = buildMiddleLanes(5);
       this.x = lanes[randomInt(0, lanes.length)];
-      this.y = 320; this.points = 10; this.speedX = 0;
+      this.y = 320;
     } else if (tier === 2) {
-      this.x = leftInside; this.y = 220; this.points = 20; this.speedX = 1.2;
+      this.x = leftInside; this.y = 220;
     } else {
-      this.x = leftInside; this.y = 120; this.points = 50; this.speedX = 2.1;
+      this.x = leftInside; this.y = 120;
     }
 
     this.leftBound = SPAWN_AREA_X() + SPAWN_PAD - this.radius;
     this.rightBound = SPAWN_AREA_X() + SPAWN_AREA_W() - SPAWN_PAD + this.radius;
   }
-
   update() {
     if (this.speedX !== 0) {
       this.x += this.speedX;
@@ -377,21 +354,14 @@ class Target {
       if (this.x < this.leftBound) this.x = this.rightBound;
     }
   }
-
   draw() {
     const size = this.radius * 2.8;
     let img = null;
     if (IMGS) {
-      if (this.tier === 1) img = IMGS.targetYellow;
-      else if (this.tier === 2) img = IMGS.targetOrange;
-      else img = IMGS.targetRed;
+      img = this.tier === 1 ? IMGS.targetYellow : (this.tier === 2 ? IMGS.targetOrange : IMGS.targetRed);
     }
-    if (img) {
-      ctx.drawImage(img, this.x - size/2, this.y - size/2, size, size);
-    } else {
-      ctx.beginPath(); ctx.fillStyle = 'gray';
-      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
-    }
+    if (img) ctx.drawImage(img, this.x - size/2, this.y - size/2, size, size);
+    else { ctx.beginPath(); ctx.fillStyle='gray'; ctx.arc(this.x,this.y,this.radius,0,Math.PI*2); ctx.fill(); }
   }
 }
 
@@ -402,82 +372,55 @@ class Farmer {
   constructor() {
     const bandLeft = SPAWN_AREA_X();
     const bandRight = SPAWN_AREA_X() + SPAWN_AREA_W();
-
     this.width = 140; this.height = 140;
     this.x = bandLeft - this.width - 40;
     this.y = 180;
-
     this.t = 0;
     this.phase = 'enter';
     this.phaseTimer = 0;
-
     this.hitbox = { x: this.x + this.width * 0.33, y: this.y + 6, width: this.width * 0.34, height: 24 };
     this.bodyBox = { x: this.x + this.width * 0.08, y: this.y + 28, width: this.width * 0.84, height: this.height - 36 };
-
     this.bodyHits = 0; this.headHits = 0;
 
     const bandWidth = bandRight - bandLeft;
     const framesForTenSec = 10 * 60;
     this.enterSpeedX = bandWidth / framesForTenSec;
-    this.rightEdgeX = bandRight - this.width;
-
     this.poseX = bandLeft + bandWidth * 0.55 - this.width / 2;
     this.poseY = this.y;
-
     this.active = false;
   }
   update() {
-    this.hitbox.x = this.x + this.width * 0.33;
-    this.hitbox.y = this.y + 6;
-    this.bodyBox.x = this.x + this.width * 0.08;
-    this.bodyBox.y = this.y + 28;
-
+    this.hitbox.x = this.x + this.width * 0.33; this.hitbox.y = this.y + 6;
+    this.bodyBox.x = this.x + this.width * 0.08; this.bodyBox.y = this.y + 28;
     if (!this.active) return;
-
-    this.t++;
-    this.phaseTimer++;
-
+    this.t++; this.phaseTimer++;
     const bob = Math.sin(this.t * 0.25) * 2;
-
     if (this.phase === 'enter') {
-      this.x += this.enterSpeedX * 1.1;
-      this.y = 180 + bob;
-      if (this.x >= this.poseX) {
-        this.x = this.poseX;
-        this.phase = 'pose';
-        this.phaseTimer = 0;
-      }
+      this.x += this.enterSpeedX * 1.1; this.y = 180 + bob;
+      if (this.x >= this.poseX) { this.x = this.poseX; this.phase = 'pose'; this.phaseTimer = 0; }
     } else if (this.phase === 'pose') {
       this.y = this.poseY + Math.sin(this.t * 0.15) * 1.0;
-      if (this.phaseTimer > 180) {
-        this.phase = 'exit';
-        this.phaseTimer = 0;
-      }
+      if (this.phaseTimer > 180) { this.phase = 'exit'; this.phaseTimer = 0; }
     } else if (this.phase === 'exit') {
-      this.y += 1.6;
-      this.x += 0.4;
+      this.y += 1.6; this.x += 0.4;
       if (this.y > LOGICAL_H + 40) endBonusRound();
     }
   }
   draw() {
-    if (IMGS && IMGS.farmerAngry) {
-      ctx.drawImage(IMGS.farmerAngry, this.x, this.y, this.width, this.height);
-    } else {
-      ctx.fillStyle = 'brown';
-      ctx.fillRect(this.x, this.y, this.width, this.height);
-    }
+    if (IMGS && IMGS.farmerAngry) ctx.drawImage(IMGS.farmerAngry, this.x, this.y, this.width, this.height);
+    else { ctx.fillStyle='brown'; ctx.fillRect(this.x,this.y,this.width,this.height); }
   }
 }
 
 /************************
  * COMBO / STREAK LOGIC *
  ************************/
-function getComboMultiplier() { if (comboCount < 5) return 1; return 1 + 0.012 * (comboCount - 4); }
+function getComboMultiplier() { return comboCount < 5 ? 1 : 1 + 0.012 * (comboCount - 4); }
 function bumpCombo(px, py, showPopupIfNeeded = true) {
   const now = performance.now();
   if (now - lastHitTime <= COMBO_TIMEOUT) comboCount += 1; else comboCount = 1;
   lastHitTime = now;
-  if (comboCount >= 5 && showPopupIfNeeded) popups.push(new Popup(px, py, `COMBO x${comboCount}`, '#7c3aed'));
+  if (showPopupIfNeeded && comboCount >= 5) popups.push(new Popup(px, py, `COMBO x${comboCount}`, '#7c3aed'));
 }
 function applyComboAndReturnPoints(basePoints, px, py) {
   bumpCombo(px, py - 18, true);
@@ -488,8 +431,7 @@ function applyComboAndReturnPoints(basePoints, px, py) {
  * BACKGROUND & HUD *
  *********************/
 function drawBackground() {
-  ctx.fillStyle = '#a0e0ff';
-  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.fillStyle = '#a0e0ff'; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
   const img = IMGS && IMGS.gameBg; if (!img) return;
   const canvasW = LOGICAL_W, canvasH = LOGICAL_H;
   const imgW = img.width, imgH = img.height;
@@ -585,7 +527,15 @@ function startGame() {
   scoreDisplay.innerText = `Score: ${score}`;
   timerDisplay.innerText = `Time: ${timeLeft}`;
 
-  showCountdown(() => { beginMainTimer(); update(); });
+  // Disable exit during countdown
+  exitBtn.disabled = true;
+
+  showCountdown(() => {
+    beginMainTimer();
+    // Re-enable exit AFTER countdown completes
+    exitBtn.disabled = false;
+    update(); // start RAF loop
+  });
 }
 
 function beginMainTimer() {
@@ -611,11 +561,22 @@ function beginMainTimer() {
 
 function showCountdown(callback) {
   const messages = ['Ready...', 'Set...', 'Go!'];
-  let index = 0; countdownDiv.style.display = 'block'; countdownDiv.innerText = messages[index];
-  const id = setInterval(() => {
+  let index = 0;
+  countdownActive = true;
+  countdownDiv.style.display = 'block';
+  countdownDiv.innerText = messages[index];
+
+  countdownTimerId = setInterval(() => {
     index++;
-    if (index >= messages.length) { clearInterval(id); countdownDiv.style.display = 'none'; callback(); }
-    else { countdownDiv.innerText = messages[index]; }
+    if (index >= messages.length) {
+      clearInterval(countdownTimerId);
+      countdownTimerId = null;
+      countdownActive = false;
+      countdownDiv.style.display = 'none';
+      callback();
+    } else {
+      countdownDiv.innerText = messages[index];
+    }
   }, 1000);
 }
 
@@ -642,23 +603,17 @@ function endBonusRound() {
   }
 }
 
-/** Stop & Exit **/
+/** Stop & Exit helpers **/
 function cleanupGameLoops() {
   if (animId) { cancelAnimationFrame(animId); animId = null; }
   if (gameInterval) { clearInterval(gameInterval); gameInterval = null; }
+  if (countdownTimerId) { clearInterval(countdownTimerId); countdownTimerId = null; }
 }
-function stopRound(showScoreOverlay = true) {
-  cleanupGameLoops();
-  isGameOver = true;
-  isGameStarted = false;
-  inBonusRound = false;
-  bonusFarmer = null;
-  if (showScoreOverlay) {
-    finalScoreValue2.textContent = score.toLocaleString();
-    setScreen('toMenuOverlay');
-  }
-}
+
 function exitToMenu() {
+  // Only allow after countdown completes
+  if (countdownActive) return;
+
   cleanupGameLoops();
   isGameOver = false;
   isGameStarted = false;
@@ -680,19 +635,16 @@ canvas.addEventListener('click', (e) => {
   tomatoes.push(new Tomato(x, y));
   cooldown = true; setTimeout(() => (cooldown = false), 600);
 });
-
 pauseBtn.addEventListener('click', () => {
-  if (!isGameStarted) return;
+  if (!isGameStarted || countdownActive) return; // don't pause during countdown
   isPaused = !isPaused;
   pauseBtn.textContent = isPaused ? 'Resume' : 'Pause';
 });
-stopBtn.addEventListener('click', () => { if (!isGameStarted) return; stopRound(true); });
 exitBtn.addEventListener('click', () => { exitToMenu(); });
 
-// Panels
-settingsBtn.addEventListener('click', () => { settingsPanel.style.display = 'block'; });
-updateLogBtn.addEventListener('click', () => { updateLogPanel.style.display = 'block'; });
-
+// Panels (open as flex so scrolling works)
+settingsBtn.addEventListener('click', () => { settingsPanel.style.display = 'flex'; });
+updateLogBtn.addEventListener('click', () => { updateLogPanel.style.display = 'flex'; });
 function hideSettings() { settingsPanel.style.display = 'none'; }
 function hideUpdateLog() { updateLogPanel.style.display = 'none'; }
 closeSettings.addEventListener('click', hideSettings);
@@ -700,6 +652,7 @@ closeSettingsX.addEventListener('click', hideSettings);
 closeUpdateLog.addEventListener('click', hideUpdateLog);
 closeUpdateLogX.addEventListener('click', hideUpdateLog);
 
+// Volume sliders
 musicVolumeSlider.addEventListener('input', (e) => { musicVolume = parseFloat(e.target.value); });
 sfxVolumeSlider.addEventListener('input', (e) => { sfxVolume = parseFloat(e.target.value); });
 
@@ -718,21 +671,21 @@ function setScreen(screen) {
   switch (screen) {
     case 'menu':
       mainMenu.classList.add('active');
-      applyMenuBackground();
-      cleanupGameLoops();
+      applyMenuBackground();         // background + logo (no text)
+      cleanupGameLoops();            // ensure stopped
+      // reset countdown state in case we arrived early
+      countdownActive = false;
+      exitBtn.disabled = false;
       isGameStarted = false;
       break;
     case 'scores':
-      highscoresScreen.classList.add('active');
-      clearMenuBackground();
-      break;
+      highscoresScreen.classList.add('active'); clearMenuBackground(); break;
     case 'nameEntry':
       nameEntry.classList.add('active'); clearMenuBackground(); break;
     case 'toMenuOverlay':
       toMenuOverlay.classList.add('active'); clearMenuBackground(); break;
     case 'game':
-      clearMenuBackground();
-      break;
+      clearMenuBackground(); break;
   }
 }
 
@@ -769,7 +722,6 @@ const ALLTIME_KEY = 'tt_alltime_top10';
 
 function loadTodayScores() { try { return JSON.parse(localStorage.getItem(todayKey())) || []; } catch { return []; } }
 function saveTodayScores(arr) { localStorage.setItem(todayKey(), JSON.stringify(arr)); }
-
 function loadAllTimeList() { try { return JSON.parse(localStorage.getItem(ALLTIME_KEY)) || []; } catch { return []; } }
 function saveAllTimeList(arr) { localStorage.setItem(ALLTIME_KEY, JSON.stringify(arr)); }
 
@@ -783,18 +735,12 @@ function highscoreDestinations(sc) {
 
 function commitScoreWithDestinations(sc, name, dest) {
   const entry = { name, score: sc, date: Date.now() };
-
   if (dest.today) {
-    const today = loadTodayScores();
-    today.push(entry);
-    today.sort((a,b)=>b.score - a.score);
+    const today = loadTodayScores(); today.push(entry); today.sort((a,b)=>b.score - a.score);
     saveTodayScores(today.slice(0, 10));
   }
-
   if (dest.alltime) {
-    const all = loadAllTimeList();
-    all.push(entry);
-    all.sort((a,b)=>b.score - a.score);
+    const all = loadAllTimeList(); all.push(entry); all.sort((a,b)=>b.score - a.score);
     saveAllTimeList(all.slice(0, 10));
   }
 }
@@ -803,9 +749,7 @@ function renderTodayScores() {
   scoresTitle.textContent = '🏆 High Scores (Today)';
   const list = loadTodayScores().sort((a,b)=>b.score - a.score).slice(0, 10);
   scoresList.innerHTML = '';
-  if (list.length === 0) {
-    const li = document.createElement('li'); li.innerHTML = `<span>—</span><span>0</span>`; scoresList.appendChild(li); return;
-  }
+  if (list.length === 0) { const li = document.createElement('li'); li.innerHTML = `<span>—</span><span>0</span>`; scoresList.appendChild(li); return; }
   for (const s of list) {
     const li = document.createElement('li');
     li.innerHTML = `<span>${s.name}</span><span>${s.score.toLocaleString()}</span>`;
@@ -817,9 +761,7 @@ function renderAllTimeScores() {
   scoresTitle.textContent = '🏆 Highest Scores (All Time)';
   const list = loadAllTimeList().sort((a,b)=>b.score - a.score).slice(0, 10);
   scoresList.innerHTML = '';
-  if (list.length === 0) {
-    const li = document.createElement('li'); li.innerHTML = `<span>—</span><span>0</span>`; scoresList.appendChild(li); return;
-  }
+  if (list.length === 0) { const li = document.createElement('li'); li.innerHTML = `<span>—</span><span>0</span>`; scoresList.appendChild(li); return; }
   for (const s of list) {
     const li = document.createElement('li');
     li.innerHTML = `<span>${s.name}</span><span>${s.score.toLocaleString()}</span>`;
@@ -830,13 +772,11 @@ function renderAllTimeScores() {
 /*****************
  * INITIAL BOOT *
  *****************/
-setScreen('menu'); // shows Main Menu only (others hidden)
-
+setScreen('menu'); // background + logo (no text)
 (async function boot(){
   try { if (playBtn) playBtn.disabled = true; IMGS = await loadImages(ASSETS); }
   catch(err){ console.warn('[TTT] Asset load issue (using shape fallbacks):', err); }
   finally { if (playBtn) playBtn.disabled = false; }
 })();
-
 window.gameInitialized = true;
 console.log("[TTT] Game initialized");
