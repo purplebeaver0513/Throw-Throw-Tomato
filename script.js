@@ -8,18 +8,10 @@
  * ASSETS
  * ============================ */
 const ASSETS = {
-  // Menu background & logo (logo has fallback below)
   menuFullBg: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025560.png",
-  logo:       "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/logo_small.png",
-
-  // Gameplay background
   gameBg:     "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025608.png",
-
-  // Projectiles & effects
   tomato:     "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/file_000000006e5061fd92760a84f59a4fa3__1_-removebg-preview.png",
   tomatoSplat:"https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/file_00000000c84c6230b19da260b17746ed__1_-removebg-preview.png",
-
-  // Farmer & targets
   farmerAngry:"https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/file_000000009a4c61f7b258eabae653aec9-removebg-preview.png",
   targetYellow:"https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025399-removebg-preview.png",
   targetOrange:"https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025398-removebg-preview.png",
@@ -59,7 +51,6 @@ const exitBtn = document.getElementById('exitBtn');
 const countdownDiv = document.getElementById('countdown');
 
 const mainMenu = document.getElementById('mainMenu');
-const titleLogoImg = document.getElementById('titleLogo');
 const playBtn = document.getElementById('playBtn');
 const openScoresBtn = document.getElementById('openScoresBtn');
 
@@ -106,50 +97,19 @@ setExactCanvasSize();
 window.addEventListener('resize', setExactCanvasSize);
 
 /**********************************
- * MENU BACKGROUND & LOGO
+ * MENU BACKGROUND (no center image)
  **********************************/
-function buildFallbackLogoDataURI() {
-  // No text — simple tomato icon fallback (visible on any network)
-  const svg = `
-  <svg xmlns="http://www.w3.org/2000/svg" width="360" height="160" viewBox="0 0 360 160">
-    <defs>
-      <filter id="s" x="-20%" y="-20%" width="140%" height="140%">
-        <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity=".35"/>
-      </filter>
-    </defs>
-    <rect fill="none" width="100%" height="100%"/>
-    <ellipse cx="180" cy="90" rx="110" ry="68" fill="#ff3b3b" filter="url(#s)"/>
-    <ellipse cx="150" cy="70" rx="30" ry="18" fill="rgba(255,255,255,0.35)"/>
-    <path d="M180,42 c-14,-18 -22,-20 -26,-20 10,10 8,18 4,24
-             M180,42 c14,-18 22,-20 26,-20 -10,10 -8,18 -4,24"
-          stroke="#216e39" stroke-width="6" fill="none" stroke-linecap="round"/>
-    <circle cx="180" cy="42" r="10" fill="#2aa745"/>
-  </svg>`;
-  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
-}
-function setMenuLogo() {
-  if (!titleLogoImg) return;
-  const probe = new Image();
-  probe.crossOrigin = "anonymous";
-  probe.onload = () => { titleLogoImg.src = ASSETS.logo; };
-  probe.onerror = () => { titleLogoImg.src = buildFallbackLogoDataURI(); };
-  probe.src = ASSETS.logo;
-
-  titleLogoImg.alt = "Throw Throw Tomato";
-  titleLogoImg.style.maxWidth = "360px";
-  titleLogoImg.style.width = "min(80vw, 360px)";
-  titleLogoImg.style.marginBottom = "28px";
-  titleLogoImg.style.display = "block";
-}
 function applyMenuBackground() {
   if (!mainMenu) return;
   mainMenu.style.backgroundImage = `url('${ASSETS.menuFullBg}')`;
   mainMenu.style.backgroundSize = 'cover';
   mainMenu.style.backgroundRepeat = 'no-repeat';
   mainMenu.style.backgroundPosition = 'center center';
-  setMenuLogo();
 }
-function clearMenuBackground() { if (mainMenu) mainMenu.style.backgroundImage = ''; }
+function clearMenuBackground() {
+  if (!mainMenu) return;
+  mainMenu.style.backgroundImage = '';
+}
 
 /**************
  * GAME STATE *
@@ -170,8 +130,8 @@ let inBonusRound = false;
 let bonusFarmer = null;
 let showBonusPrompt = false;
 
-let animId = null;      // RAF loop
-let gameInterval = null;  // 1-second tick
+let animId = null;          // RAF loop
+let gameInterval = null;    // 1s tick
 let countdownActive = false;
 let countdownTimerId = null;
 
@@ -256,12 +216,15 @@ class Tomato {
   update() {
     const dx = this.targetX - this.x, dy = this.targetY - this.y;
     const dist = Math.hypot(dx, dy);
-    if (dist > this.speed) { this.x += (dx / dist) * this.speed; this.y += (dy / dist) * this.speed; }
-    else { this.hit(); }
+    if (dist > this.speed) {
+      this.x += (dx / dist) * this.speed;
+      this.y += (dy / dist) * this.speed;
+    } else {
+      this.hit();
+    }
   }
   hit() {
     let awarded = false;
-    // regular targets
     for (let i = targets.length - 1; i >= 0; i--) {
       const t = targets[i];
       if (t && Math.hypot(this.x - t.x, this.y - t.y) < t.radius + this.radius) {
@@ -275,7 +238,6 @@ class Tomato {
         break;
       }
     }
-    // farmer
     if (!awarded && inBonusRound && bonusFarmer) {
       const hb = bonusFarmer.hitbox, fb = bonusFarmer.bodyBox;
       const onHead = (this.x > hb.x && this.x < hb.x + hb.width && this.y > hb.y && this.y < hb.y + hb.height);
@@ -660,7 +622,7 @@ canvas.addEventListener('click', (e) => {
   const scaleX = LOGICAL_W / rect.width;
   const scaleY = LOGICAL_H / rect.height;
   const x = (e.clientX - rect.left) * scaleX;
-  const y = (e.clientY - rect.top) * scaleY;
+  const y = (e.clientY - rect.top)  * scaleY;
   tomatoes.push(new Tomato(x, y));
   cooldown = true; setTimeout(() => (cooldown = false), 600);
 });
@@ -710,20 +672,13 @@ function setScreen(screen) {
       isGameStarted = false;
       break;
     case 'scores':
-      highscoresScreen.classList.add('active');
-      clearMenuBackground();
-      break;
+      highscoresScreen.classList.add('active'); clearMenuBackground(); break;
     case 'nameEntry':
-      nameEntry.classList.add('active');
-      clearMenuBackground();
-      break;
+      nameEntry.classList.add('active'); clearMenuBackground(); break;
     case 'toMenuOverlay':
-      toMenuOverlay.classList.add('active');
-      clearMenuBackground();
-      break;
+      toMenuOverlay.classList.add('active'); clearMenuBackground(); break;
     case 'game':
-      clearMenuBackground();
-      break;
+      clearMenuBackground(); break;
   }
 }
 
@@ -813,7 +768,7 @@ function renderAllTimeScores() {
 /*****************
  * INITIAL BOOT *
  *****************/
-setScreen('menu'); // background + logo (no text)
+setScreen('menu'); // background only (no center image)
 (async function boot(){
   try { if (playBtn) playBtn.disabled = true; IMGS = await loadImages(ASSETS); }
   catch(err){ console.warn('[TTT] Asset load issue (using shape fallbacks):', err); }
