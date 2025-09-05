@@ -1,197 +1,447 @@
-/* Essential CSS for the game to work */
-* { margin: 0; padding: 0; box-sizing: border-box; }
+/*************************
+ * Throw Throw Tomato JS *
+ *************************/
 
-body {
-  font-family: 'Nunito', sans-serif;
-  background: #000;
-  overflow: hidden;
+/** ============================
+ * ASSETS
+ * ============================ */
+const ASSETS = {
+  // Main menu background (applied to #mainMenu overlay)
+  menuFullBg: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025560.png",
+
+  // Gameplay background (full canvas, "cover")
+  gameBg: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025608.png",
+
+  // Projectiles & effects
+  tomato: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/file_000000006e5061fd92760a84f59a4fa3__1_-removebg-preview.png",
+  tomatoSplat: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/file_00000000c84c6230b19da260b17746ed__1_-removebg-preview.png",
+
+  // Farmer
+  farmerAngry: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/file_000000009a4c61f7b258eabae653aec9-removebg-preview.png",
+
+  // Targets (same size across tiers)
+  targetYellow: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025399-removebg-preview.png",
+  targetOrange: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025398-removebg-preview.png",
+  targetRed: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025397-removebg-preview.png",
+};
+
+/** ============================
+ * IMAGE PRELOAD (tolerant)
+ * ============================ */
+let IMGS = null;
+function loadImages(manifest) {
+  const entries = Object.entries(manifest);
+  const images = {};
+  let done = 0;
+
+  return new Promise((resolve) => {
+    const finish = () => {
+      if (++done === entries.length) resolve(images);
+    };
+    entries.forEach(([key, url]) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => { images[key] = img; finish(); };
+      img.onerror = () => { console.warn("[TTT] Failed to load:", url); finish(); };
+      img.src = url;
+    });
+  });
 }
 
-.game-container {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
+/**************
+ * DOM HOOKS *
+ **************/
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const timerDisplay = document.getElementById('timer');
+const scoreDisplay = document.getElementById('score');
+const pauseBtn = document.getElementById('pauseBtn');
+const countdownDiv = document.getElementById('countdown');
+const finalScoreDiv = document.getElementById('finalScore');
+
+const mainMenu = document.getElementById('mainMenu');
+const playBtn = document.getElementById('playBtn');
+const openScoresBtn = document.getElementById('openScoresBtn');
+
+const highscoresScreen = document.getElementById('highscoresScreen');
+const scoresTitle = document.getElementById('scoresTitle');
+const scoresList = document.getElementById('scoresList');
+const showAllTimeBtn = document.getElementById('showAllTimeBtn');
+const scoresToMenuBtn = document.getElementById('scoresToMenuBtn');
+
+const nameEntry = document.getElementById('nameEntry');
+const finalScoreValue = document.getElementById('finalScoreValue');
+const playerNameInput = document.getElementById('playerName');
+const saveScoreBtn = document.getElementById('saveScoreBtn');
+const cancelSaveBtn = document.getElementById('cancelSaveBtn');
+
+const toMenuOverlay = document.getElementById('toMenuOverlay');
+const toMenuBtn = document.getElementById('toMenuBtn');
+const finalScoreValue2 = document.getElementById('finalScoreValue2');
+
+const settingsBtn = document.getElementById('settingsBtn');
+const updateLogBtn = document.getElementById('updateLogBtn');
+const settingsPanel = document.getElementById('settingsPanel');
+const updateLogPanel = document.getElementById('updateLogPanel');
+const closeSettings = document.getElementById('closeSettings');
+const closeUpdateLog = document.getElementById('closeUpdateLog');
+const musicVolumeSlider = document.getElementById('musicVolume');
+const sfxVolumeSlider = document.getElementById('sfxVolume');
+
+const titleLogoImg = document.getElementById('titleLogo');
+
+/************************
+ * CANVAS SIZE (exact) *
+ ************************/
+const LOGICAL_W = 1800;
+const LOGICAL_H = 600;
+function setExactCanvasSize() {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(LOGICAL_W * dpr);
+  canvas.height = Math.round(LOGICAL_H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+}
+setExactCanvasSize();
+window.addEventListener('resize', setExactCanvasSize);
+
+/**********************************
+ * MENU BACKGROUND ON OVERLAY
+ **********************************/
+function applyMenuBackground() {
+  if (!mainMenu) return;
+  mainMenu.style.backgroundImage = `url('${ASSETS.menuFullBg}')`;
+  mainMenu.style.backgroundSize = 'cover';
+  mainMenu.style.backgroundRepeat = 'no-repeat';
+  mainMenu.style.backgroundPosition = 'center center';
+}
+function clearMenuBackground() {
+  if (!mainMenu) return;
+  mainMenu.style.backgroundImage = '';
 }
 
-#gameCanvas {
-  display: block;
-  background: #87CEEB;
-  width: 100%;
-  height: 100%;
+/**************
+ * GAME STATE *
+ **************/
+let score = 0;
+let timeLeft = 20;
+let cooldown = false;
+let isGameOver = false;
+let isGameStarted = false;
+let isPaused = false;
+
+let targets = [];
+let tomatoes = [];
+let popups = [];
+let splats = [];
+
+let inBonusRound = false;
+let bonusFarmer = null;
+let showBonusPrompt = false;
+
+let gameInterval = null;
+let animId = null; // SINGLE RAF LOOP ID
+
+let musicVolume = 1.0;
+let sfxVolume = 1.0;
+let pendingScore = 0;
+let pendingDestinations = { today: false, alltime: false };
+
+let comboCount = 0;
+let bestStreak = 0;
+let lastHitTime = 0;
+const COMBO_TIMEOUT = 1750;
+
+/********************
+ * HELPERS & SPAWN *
+ ********************/
+function randomInt(min, max) { return Math.floor(Math.random() * (max - min) + min); }
+
+// Centered spawn band
+const SPAWN_BAND_LEFT_RATIO = 0.30;
+const SPAWN_BAND_WIDTH_RATIO = 0.40;
+
+const SPAWN_AREA_X = () =>
+  (canvas.width / (window.devicePixelRatio || 1)) * SPAWN_BAND_LEFT_RATIO;
+
+const SPAWN_AREA_W = () =>
+  (canvas.width / (window.devicePixelRatio || 1)) * SPAWN_BAND_WIDTH_RATIO;
+
+const SPAWN_PAD = 40;
+
+function buildMiddleLanes(count = 5) {
+  const left = SPAWN_AREA_X() + SPAWN_PAD;
+  const right = SPAWN_AREA_X() + SPAWN_AREA_W() - SPAWN_PAD;
+  if (count <= 1) return [Math.floor((left + right) / 2)];
+  const step = (right - left) / (count - 1);
+  return Array.from({ length: count }, (_, i) => Math.floor(left + i * step));
 }
 
-/* UI Elements */
-#topButtons {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  z-index: 100;
+/****************
+ * POPUPS / FX *
+ ****************/
+class Popup {
+  constructor(x, y, text, color = '#111') {
+    this.x = x; this.y = y;
+    this.text = text; this.color = color;
+    this.alpha = 1; this.dy = -1.2; this.life = 60;
+    this.size = 28; this.bold = true;
+  }
+  update() { this.y += this.dy; this.life--; this.alpha = Math.max(0, this.life / 60); }
+  draw() {
+    ctx.save();
+    ctx.globalAlpha = this.alpha;
+    ctx.font = `${this.bold ? '800 ' : ''}${this.size}px Nunito, sans-serif`;
+    ctx.fillStyle = this.color;
+    ctx.textAlign = 'center';
+    ctx.fillText(this.text, this.x, this.y);
+    ctx.restore();
+  }
+  get dead() { return this.life <= 0; }
 }
 
-#topButtons button {
-  margin-right: 10px;
-  padding: 10px;
-  font-size: 16px;
-  background: rgba(255, 255, 255, 0.9);
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
+class Splat {
+  constructor(x, y, imgKey = 'tomatoSplat', life = 42, scale = 1.1) {
+    this.x = x; this.y = y; this.imgKey = imgKey;
+    this.life = life; this.max = life; this.scale = scale;
+  }
+  update() { this.life--; }
+  draw() {
+    const alpha = Math.max(0, this.life / this.max);
+    const img = IMGS && IMGS[this.imgKey];
+    if (!img) return;
+    const base = 90 * this.scale;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(img, this.x - base/2, this.y - base/2, base, base);
+    ctx.restore();
+  }
+  get dead() { return this.life <= 0; }
 }
 
-#ui {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 100;
-  color: white;
-  font-weight: 800;
+/****************
+ * PROJECTILES *
+ ****************/
+class Tomato {
+  constructor(targetX, targetY) {
+    this.x = LOGICAL_W / 2;
+    this.y = LOGICAL_H - 40;
+    this.targetX = targetX; this.targetY = targetY;
+    this.radius = 10; this.speed = 18;
+  }
+  update() {
+    const dx = this.targetX - this.x, dy = this.targetY - this.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > this.speed) { this.x += (dx / dist) * this.speed; this.y += (dy / dist) * this.speed; }
+    else { this.hit(); }
+  }
+  hit() {
+    let awarded = false;
+
+    // regular targets
+    for (let i = targets.length - 1; i >= 0; i--) {
+      const t = targets[i];
+      if (t && Math.hypot(this.x - t.x, this.y - t.y) < t.radius + this.radius) {
+        const basePoints = t.points;
+        const pointsWithCombo = applyComboAndReturnPoints(basePoints, t.x, t.y - 10);
+
+        score += pointsWithCombo;
+        scoreDisplay.innerText = `Score: ${score.toLocaleString()}`;
+
+        popups.push(new Popup(t.x, t.y - 10, `+${pointsWithCombo}`, '#111'));
+        splats.push(new Splat(t.x, t.y - 6, 'tomatoSplat', 44, 1.0));
+
+        targets.splice(i, 1);
+        awarded = true;
+        break;
+      }
+    }
+
+    // farmer
+    if (!awarded && inBonusRound && bonusFarmer) {
+      const hb = bonusFarmer.hitbox;
+      const fb = bonusFarmer.bodyBox;
+      const onHead = (this.x > hb.x && this.x < hb.x + hb.width && this.y > hb.y && this.y < hb.y + hb.height);
+      const onBody = (this.x > fb.x && this.x < fb.x + fb.width && this.y > fb.y && this.y < fb.y + fb.height);
+
+      if (onHead) {
+        if (!bonusFarmer.headHits) {
+          const base = 100;
+          const pts = applyComboAndReturnPoints(base, hb.x + hb.width/2, hb.y - 8);
+          score += pts;
+          popups.push(new Popup(hb.x + hb.width/2, hb.y - 8, `+${pts}`, '#e11d48'));
+        } else {
+          score = Math.floor(score * 2);
+          popups.push(new Popup(hb.x + hb.width/2, hb.y - 8, 'x2!', '#e11d48'));
+          bumpCombo(hb.x + hb.width/2, hb.y - 26, true);
+        }
+        splats.push(new Splat(hb.x + hb.width/2, hb.y, 'tomatoSplat', 44, 1.2));
+        bonusFarmer.headHits = (bonusFarmer.headHits || 0) + 1;
+        scoreDisplay.innerText = `Score: ${score.toLocaleString()}`;
+        awarded = true;
+      } else if (onBody) {
+        if (!bonusFarmer.bodyHits) {
+          const base = 50;
+          const pts = applyComboAndReturnPoints(base, fb.x + fb.width/2, fb.y + fb.height/2);
+          score += pts;
+          popups.push(new Popup(fb.x + fb.width/2, fb.y + fb.height/2, `+${pts}`, '#1d4ed8'));
+        } else {
+          score = Math.floor(score * 1.5);
+          popups.push(new Popup(fb.x + fb.width/2, fb.y + fb.height/2, 'x1.5!', '#1d4ed8'));
+          bumpCombo(fb.x + fb.width/2, fb.y + fb.height/2 - 18, true);
+        }
+        splats.push(new Splat(fb.x + fb.width/2, fb.y + fb.height/2, 'tomatoSplat', 40, 1.1));
+        bonusFarmer.bodyHits = (bonusFarmer.bodyHits || 0) + 1;
+        scoreDisplay.innerText = `Score: ${score.toLocaleString()}`;
+        awarded = true;
+      }
+    }
+
+    const idx = tomatoes.indexOf(this); if (idx !== -1) tomatoes.splice(idx, 1);
+  }
+  draw() {
+    if (IMGS && IMGS.tomato) {
+      const size = 28;
+      ctx.drawImage(IMGS.tomato, this.x - size/2, this.y - size/2, size, size);
+    } else {
+      ctx.beginPath(); ctx.fillStyle = 'tomato';
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
+    }
+  }
 }
 
-#ui.hide { display: none; }
+/***********
+ * TARGETS *
+ ***********/
+class Target {
+  constructor(tier = 1) {
+    this.radius = 30; // same size for all tiers
+    this.tier = tier;
+    this.points = 10;
+    this.speedX = 0;
 
-#ui div {
-  margin-bottom: 10px;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 8px 12px;
-  border-radius: 5px;
+    const leftInside = SPAWN_AREA_X() + SPAWN_PAD + this.radius;
+
+    if (tier === 1) {
+      const lanes = buildMiddleLanes(5);
+      this.x = lanes[randomInt(0, lanes.length)];
+      this.y = 320; this.points = 10; this.speedX = 0;
+    } else if (tier === 2) {
+      this.x = leftInside; this.y = 220; this.points = 20; this.speedX = 1.2;
+    } else {
+      this.x = leftInside; this.y = 120; this.points = 50; this.speedX = 2.1;
+    }
+
+    this.leftBound = SPAWN_AREA_X() + SPAWN_PAD - this.radius;
+    this.rightBound = SPAWN_AREA_X() + SPAWN_AREA_W() - SPAWN_PAD + this.radius;
+  }
+
+  update() {
+    if (this.speedX !== 0) {
+      this.x += this.speedX;
+      if (this.x > this.rightBound) this.x = this.leftBound;
+      if (this.x < this.leftBound) this.x = this.rightBound;
+    }
+  }
+
+  draw() {
+    const size = this.radius * 2.8;
+    let img = null;
+    if (IMGS) {
+      if (this.tier === 1) img = IMGS.targetYellow;
+      else if (this.tier === 2) img = IMGS.targetOrange;
+      else img = IMGS.targetRed;
+    }
+    if (img) {
+      ctx.drawImage(img, this.x - size/2, this.y - size/2, size, size);
+    } else {
+      ctx.beginPath(); ctx.fillStyle = 'gray';
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
+    }
+  }
 }
 
-#pauseBtn {
-  padding: 8px 16px;
-  background: #ff6b6b;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: 600;
+/***********
+ * FARMER *
+ ***********/
+class Farmer {
+  constructor() {
+    const bandLeft = SPAWN_AREA_X();
+    const bandRight = SPAWN_AREA_X() + SPAWN_AREA_W();
+
+    this.width = 140; this.height = 140;
+    this.x = bandLeft - this.width - 40;
+    this.y = 180;
+
+    this.t = 0;
+    this.phase = 'enter'; // 'enter' -> 'pose' -> 'exit'
+    this.phaseTimer = 0;
+
+    this.hitbox = { x: this.x + this.width * 0.33, y: this.y + 6, width: this.width * 0.34, height: 24 };
+    this.bodyBox = { x: this.x + this.width * 0.08, y: this.y + 28, width: this.width * 0.84, height: this.height - 36 };
+
+    this.bodyHits = 0; this.headHits = 0;
+
+    const bandWidth = bandRight - bandLeft;
+    const framesForTenSec = 10 * 60;
+    this.enterSpeedX = bandWidth / framesForTenSec;
+    this.rightEdgeX = bandRight - this.width;
+
+    this.poseX = bandLeft + bandWidth * 0.55 - this.width / 2;
+    this.poseY = this.y;
+
+    this.active = false;
+  }
+  update() {
+    this.hitbox.x = this.x + this.width * 0.33;
+    this.hitbox.y = this.y + 6;
+    this.bodyBox.x = this.x + this.width * 0.08;
+    this.bodyBox.y = this.y + 28;
+
+    if (!this.active) return;
+
+    this.t++;
+    this.phaseTimer++;
+
+    const bob = Math.sin(this.t * 0.25) * 2;
+
+    if (this.phase === 'enter') {
+      this.x += this.enterSpeedX * 1.1;
+      this.y = 180 + bob;
+      if (this.x >= this.poseX) {
+        this.x = this.poseX;
+        this.phase = 'pose';
+        this.phaseTimer = 0;
+      }
+    } else if (this.phase === 'pose') {
+      this.y = this.poseY + Math.sin(this.t * 0.15) * 1.0;
+      if (this.phaseTimer > 180) {
+        this.phase = 'exit';
+        this.phaseTimer = 0;
+      }
+    } else if (this.phase === 'exit') {
+      this.y += 1.6;
+      this.x += 0.4;
+      if (this.y > LOGICAL_H + 40) endBonusRound();
+    }
+  }
+  draw() {
+    if (IMGS && IMGS.farmerAngry) {
+      ctx.drawImage(IMGS.farmerAngry, this.x, this.y, this.width, this.height);
+    } else {
+      ctx.fillStyle = 'brown';
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+  }
 }
 
-/* Overlays */
-.overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.9);
-  display: none;
-  z-index: 200;
+/************************
+ * COMBO / STREAK LOGIC *
+ ************************/
+function getComboMultiplier() {
+  if (comboCount < 5) return 1;
+  const steps = comboCount - 4;
+  return 1 + 0.012 * steps;
 }
-
-.overlay.active { display: flex; }
-
-.center-stack {
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  color: white;
-  text-align: center;
-}
-
-.overlay-panel {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: white;
-  color: black;
-  padding: 30px;
-  border-radius: 10px;
-  display: none;
-  z-index: 300;
-  max-width: 400px;
-  width: 90%;
-}
-
-/* Buttons */
-button {
-  padding: 12px 24px;
-  margin: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-button:hover { transform: translateY(-2px); }
-
-.primary { background: #ff6b6b; color: white; }
-.primary:hover { background: #ff5252; }
-
-button:not(.primary) {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-}
-
-/* Title logo */
-#titleLogo {
-  max-width: 300px;
-  margin-bottom: 30px;
-}
-
-/* Score displays */
-.big-score {
-  font-size: 24px;
-  font-weight: 800;
-  margin: 20px 0;
-  color: #ff6b6b;
-}
-
-/* High scores */
-.score-list {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 20px;
-  margin: 20px 0;
-  min-width: 300px;
-}
-
-.score-list li {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-}
-.score-list li:last-child { border-bottom: none; }
-
-/* Input */
-input[type="text"] {
-  padding: 12px;
-  margin: 10px 0;
-  border: 2px solid #ddd;
-  border-radius: 5px;
-  font-size: 16px;
-  width: 200px;
-}
-input[type="range"] { width: 200px; margin: 10px 0; }
-label { display: block; margin: 15px 0; font-weight: 600; }
-
-/* Rows */
-.row { display: flex; gap: 10px; justify-content: center; }
-
-/* Countdown */
-#countdown {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 72px;
-  font-weight: 900;
-  color: white;
-  text-shadow: 3px 3px 0px #000;
-  z-index: 250;
-  display: none;
-}
-
-/* Version */
-#versionLabel {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 12px;
-  z-index: 50;
-}
-
-/* Headings */
-h2 { margin-bottom: 20px; color: inherit; }
+function bumpCombo(px, py, showPopupIfNeeded = true) {
+  const now = perfor
