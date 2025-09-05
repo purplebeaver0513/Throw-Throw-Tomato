@@ -6,29 +6,56 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Optional font -->
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
-  <!-- Your main stylesheet (the one you sent earlier) -->
+  <!-- Your main stylesheet -->
   <link rel="stylesheet" href="style.css">
   <style>
     /* Keep title buttons above overlays */
     #topButtons { z-index: 1000; }
 
-    /* Panel headers with an “×” */
+    /* Panel headers with a visible “×” */
     .panel-header {
       display:flex; align-items:center; justify-content:space-between;
       margin-bottom:12px;
     }
     .close-x {
-      background: transparent; border: none; font-size: 22px; line-height: 1;
-      cursor: pointer; padding: 2px 6px; border-radius: 6px;
+      background:#ff4d4d;  /* red background */
+      color:#000;          /* black “×” */
+      border:none;
+      font-size:22px; line-height:1;
+      cursor:pointer; padding:2px 10px;
+      border-radius:8px;
     }
-    .close-x:hover { background: rgba(0,0,0,0.06); }
+    .close-x:hover { filter:brightness(0.9); }
+
+    /* Make overlay panels scrollable inside */
+    .overlay-panel {
+      /* existing base styles come from your CSS */
+      max-height: 80vh;
+      overflow: hidden;
+      display: none;              /* shown as flex by JS */
+      display: none;
+      /* flex layout for header/content/footer */
+      display: none;
+      /* NOTE: JS sets style.display = 'flex' when opening */
+      flex-direction: column;
+    }
+    .overlay-panel .panel-content {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      padding-right: 6px; /* little space for scrollbar */
+    }
+    .overlay-panel .panel-footer {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
 
     /* HUD control row */
     #hudControls { margin-top: 8px; display: flex; gap: 8px; justify-content: flex-end; }
 
-    /* IMPORTANT FIX:
-       Do NOT set display:flex here. Let .overlay.active control visibility. */
-    /* .center-stack { display: flex; }  <-- removed */
+    /* Move version label to bottom-left */
+    #versionLabel { left: 10px; right: auto; }
   </style>
 </head>
 <body>
@@ -45,7 +72,6 @@
       <div id="score">Score: 0</div>
       <div id="hudControls">
         <button id="pauseBtn" type="button">Pause</button>
-        <button id="stopBtn" type="button" title="Stop this round now">Stop</button>
         <button id="exitBtn" type="button" title="Exit to Main Menu">Exit</button>
       </div>
     </div>
@@ -61,6 +87,7 @@
 
     <!-- Main Menu -->
     <div id="mainMenu" class="overlay center-stack active">
+      <!-- Logo is set by JS (with no-text fallback) -->
       <img id="titleLogo" alt="Throw Throw Tomato Logo" />
       <button id="playBtn" class="primary">Play</button>
       <button id="openScoresBtn">High Scores</button>
@@ -101,13 +128,17 @@
         <h2 style="margin:0;">Settings</h2>
         <button id="closeSettingsX" class="close-x" title="Close">×</button>
       </div>
-      <label>Music Volume
-        <input id="musicVolume" type="range" min="0" max="1" step="0.01" value="1">
-      </label>
-      <label>Sound Effects Volume
-        <input id="sfxVolume" type="range" min="0" max="1" step="0.01" value="1">
-      </label>
-      <button id="closeSettings">Close</button>
+      <div class="panel-content">
+        <label>Music Volume
+          <input id="musicVolume" type="range" min="0" max="1" step="0.01" value="1">
+        </label>
+        <label>Sound Effects Volume
+          <input id="sfxVolume" type="range" min="0" max="1" step="0.01" value="1">
+        </label>
+      </div>
+      <div class="panel-footer">
+        <button id="closeSettings">Close</button>
+      </div>
     </div>
 
     <!-- Update Log Panel -->
@@ -116,14 +147,20 @@
         <h2 style="margin:0;">Update Log</h2>
         <button id="closeUpdateLogX" class="close-x" title="Close">×</button>
       </div>
-      <div id="updateLogContent">
-        <p><strong>v1.0.6</strong> – Settings/Update Log visible on title; “×” closers; Pause/Stop/Exit; overlay display fix.</p>
+      <div class="panel-content" id="updateLogContent">
+        <p><strong>v1.0.8</strong> – Version bottom-left; scrollable panels; Exit disabled during countdown; removed Stop.</p>
+        <p><strong>v1.0.7</strong> – Close “×” is black on red; removed fallback title text.</p>
+        <p><strong>v1.0.6</strong> – Settings/Update Log visible on title; Pause/Exit; overlay display fix.</p>
         <p><strong>v1.0.5</strong> – Separate logo & background (no duplicate image).</p>
+        <!-- Add more history here; it will scroll -->
       </div>
-      <button id="closeUpdateLog">Close</button>
+      <div class="panel-footer">
+        <button id="closeUpdateLog">Close</button>
+      </div>
     </div>
 
-    <div id="versionLabel">v1.0.6</div>
+    <!-- Version Number (bottom-left) -->
+    <div id="versionLabel">V.1.0.8</div>
   </div>
 
   <script src="script.js" defer></script>
