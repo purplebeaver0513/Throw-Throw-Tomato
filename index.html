@@ -4,14 +4,15 @@
   <meta charset="utf-8" />
   <title>Throw Throw Tomato</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Font (optional; fallback-safe if blocked) -->
+  <!-- Optional font -->
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
-  <!-- Your existing CSS file -->
+  <!-- Your main stylesheet (the one you sent earlier) -->
   <link rel="stylesheet" href="style.css">
   <style>
-    /* Ensure top-left buttons are visible above the menu overlay */
+    /* Keep title buttons above overlays */
     #topButtons { z-index: 1000; }
-    /* Add a clear “X” close control on panels */
+
+    /* Panel headers with an “×” */
     .panel-header {
       display:flex; align-items:center; justify-content:space-between;
       margin-bottom:12px;
@@ -21,15 +22,18 @@
       cursor: pointer; padding: 2px 6px; border-radius: 6px;
     }
     .close-x:hover { background: rgba(0,0,0,0.06); }
-    /* Extra HUD controls */
+
+    /* HUD control row */
     #hudControls { margin-top: 8px; display: flex; gap: 8px; justify-content: flex-end; }
-    /* Make overlays flex containers by default (your CSS had .overlay.active = flex) */
-    .center-stack { display: flex; }
+
+    /* IMPORTANT FIX:
+       Do NOT set display:flex here. Let .overlay.active control visibility. */
+    /* .center-stack { display: flex; }  <-- removed */
   </style>
 </head>
 <body>
   <div class="game-container">
-    <!-- Always-visible top-left buttons (overlays can't block them due to high z-index) -->
+    <!-- Always-visible title buttons -->
     <div id="topButtons">
       <button id="settingsBtn" title="Settings">⚙️</button>
       <button id="updateLogBtn" title="Update Log">📜</button>
@@ -46,18 +50,17 @@
       </div>
     </div>
 
-    <!-- Game Canvas -->
+    <!-- Canvas -->
     <canvas id="gameCanvas"></canvas>
 
     <!-- Countdown overlay -->
     <div id="countdown"></div>
 
-    <!-- Final Score badge (unused direct badge; kept for compatibility) -->
+    <!-- Final Score badge (compat container) -->
     <div id="finalScore"></div>
 
     <!-- Main Menu -->
     <div id="mainMenu" class="overlay center-stack active">
-      <!-- Logo is set by JS (with fallback if remote logo fails) -->
       <img id="titleLogo" alt="Throw Throw Tomato Logo" />
       <button id="playBtn" class="primary">Play</button>
       <button id="openScoresBtn">High Scores</button>
@@ -114,13 +117,12 @@
         <button id="closeUpdateLogX" class="close-x" title="Close">×</button>
       </div>
       <div id="updateLogContent">
-        <p><strong>v1.0.6</strong> – Settings/Update Log now visible on title; added “×” closers; Pause/Stop/Exit controls.</p>
-        <p><strong>v1.0.5</strong> – Separate menu logo & background (no duplicate image).</p>
+        <p><strong>v1.0.6</strong> – Settings/Update Log visible on title; “×” closers; Pause/Stop/Exit; overlay display fix.</p>
+        <p><strong>v1.0.5</strong> – Separate logo & background (no duplicate image).</p>
       </div>
       <button id="closeUpdateLog">Close</button>
     </div>
 
-    <!-- Version Number -->
     <div id="versionLabel">v1.0.6</div>
   </div>
 
