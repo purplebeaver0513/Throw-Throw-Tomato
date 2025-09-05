@@ -6,26 +6,15 @@
  * ASSETS
  * ============================ */
 const ASSETS = {
-  // Fullscreen menu background (hero image)
   menuFullBg: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025560.png",
-
-  // Logo (smaller, transparent PNG recommended). Fallback handled below.
-  logo: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/logo_small.png",
-
-  // Gameplay background (cover)
-  gameBg: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025608.png",
-
-  // Projectiles & effects
-  tomato: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/file_000000006e5061fd92760a84f59a4fa3__1_-removebg-preview.png",
-  tomatoSplat: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/file_00000000c84c6230b19da260b17746ed__1_-removebg-preview.png",
-
-  // Farmer
-  farmerAngry: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/file_000000009a4c61f7b258eabae653aec9-removebg-preview.png",
-
-  // Targets (same size across tiers)
-  targetYellow: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025399-removebg-preview.png",
-  targetOrange: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025398-removebg-preview.png",
-  targetRed: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025397-removebg-preview.png",
+  logo:       "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/logo_small.png",
+  gameBg:     "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025608.png",
+  tomato:     "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/file_000000006e5061fd92760a84f59a4fa3__1_-removebg-preview.png",
+  tomatoSplat:"https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/file_00000000c84c6230b19da260b17746ed__1_-removebg-preview.png",
+  farmerAngry:"https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/file_000000009a4c61f7b258eabae653aec9-removebg-preview.png",
+  targetYellow:"https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025399-removebg-preview.png",
+  targetOrange:"https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025398-removebg-preview.png",
+  targetRed:   "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025397-removebg-preview.png",
 };
 
 /** ============================
@@ -36,7 +25,6 @@ function loadImages(manifest) {
   const entries = Object.entries(manifest);
   const images = {};
   let done = 0;
-
   return new Promise((resolve) => {
     const finish = () => { if (++done === entries.length) resolve(images); };
     entries.forEach(([key, url]) => {
@@ -204,7 +192,6 @@ const COMBO_TIMEOUT = 1750;
  ********************/
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min) + min); }
 
-// Centered spawn band
 const SPAWN_BAND_LEFT_RATIO = 0.30;
 const SPAWN_BAND_WIDTH_RATIO = 0.40;
 
@@ -362,7 +349,7 @@ class Tomato {
  ***********/
 class Target {
   constructor(tier = 1) {
-    this.radius = 30; // same size for all tiers
+    this.radius = 30;
     this.tier = tier;
     this.points = 10;
     this.speedX = 0;
@@ -421,7 +408,7 @@ class Farmer {
     this.y = 180;
 
     this.t = 0;
-    this.phase = 'enter'; // 'enter' -> 'pose' -> 'exit'
+    this.phase = 'enter';
     this.phaseTimer = 0;
 
     this.hitbox = { x: this.x + this.width * 0.33, y: this.y + 6, width: this.width * 0.34, height: 24 };
@@ -485,94 +472,44 @@ class Farmer {
 /************************
  * COMBO / STREAK LOGIC *
  ************************/
-function getComboMultiplier() {
-  if (comboCount < 5) return 1;
-  const steps = comboCount - 4;
-  return 1 + 0.012 * steps;
-}
+function getComboMultiplier() { if (comboCount < 5) return 1; return 1 + 0.012 * (comboCount - 4); }
 function bumpCombo(px, py, showPopupIfNeeded = true) {
   const now = performance.now();
-  if (now - lastHitTime <= COMBO_TIMEOUT) comboCount += 1;
-  else comboCount = 1;
+  if (now - lastHitTime <= COMBO_TIMEOUT) comboCount += 1; else comboCount = 1;
   lastHitTime = now;
-  if (comboCount > bestStreak) bestStreak = comboCount;
-  if (showPopupIfNeeded && comboCount >= 5) {
-    popups.push(new Popup(px, py, `COMBO x${comboCount}`, '#7c3aed'));
-  }
+  if (comboCount >= 5 && showPopupIfNeeded) popups.push(new Popup(px, py, `COMBO x${comboCount}`, '#7c3aed'));
 }
 function applyComboAndReturnPoints(basePoints, px, py) {
   bumpCombo(px, py - 18, true);
-  const mult = getComboMultiplier();
-  return Math.floor(basePoints * mult);
+  return Math.floor(basePoints * getComboMultiplier());
 }
 
 /*********************
  * BACKGROUND & HUD *
  *********************/
 function drawBackground() {
-  // fallback color while image loads
   ctx.fillStyle = '#a0e0ff';
   ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-
-  const img = IMGS && IMGS.gameBg;
-  if (!img) return;
-
-  // "cover" without stretching
+  const img = IMGS && IMGS.gameBg; if (!img) return;
   const canvasW = LOGICAL_W, canvasH = LOGICAL_H;
   const imgW = img.width, imgH = img.height;
-  const canvasAR = canvasW / canvasH;
-  const imgAR = imgW / imgH;
-
+  const canvasAR = canvasW / canvasH, imgAR = imgW / imgH;
   let srcW, srcH, srcX, srcY;
-  if (imgAR > canvasAR) {
-    srcH = imgH;
-    srcW = Math.floor(imgH * canvasAR);
-    srcX = Math.floor((imgW - srcW) / 2);
-    srcY = 0;
-  } else {
-    srcW = imgW;
-    srcH = Math.floor(imgW / canvasAR);
-    srcX = 0;
-    srcY = Math.floor((imgH - srcH) / 2);
-  }
-
+  if (imgAR > canvasAR) { srcH = imgH; srcW = Math.floor(imgH * canvasAR); srcX = Math.floor((imgW - srcW) / 2); srcY = 0; }
+  else { srcW = imgW; srcH = Math.floor(imgW / canvasAR); srcX = 0; srcY = Math.floor((imgH - srcH) / 2); }
   ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, canvasW, canvasH);
 }
-
-function drawLauncher() {
-  ctx.fillStyle = '#7b3f00';
-  ctx.fillRect(LOGICAL_W/2 - 12, LOGICAL_H - 30, 24, 24);
-}
-
+function drawLauncher() { ctx.fillStyle = '#7b3f00'; ctx.fillRect(LOGICAL_W/2 - 12, LOGICAL_H - 30, 24, 24); }
 function drawComboBar() {
   if (comboCount <= 0) return;
-
-  const now = performance.now();
-  const elapsed = now - lastHitTime;
-  const remain = Math.max(0, COMBO_TIMEOUT - elapsed);
+  const now = performance.now(), elapsed = now - lastHitTime, remain = Math.max(0, COMBO_TIMEOUT - elapsed);
   const pct = Math.max(0, Math.min(1, remain / COMBO_TIMEOUT));
-
-  const barX = LOGICAL_W / 2 - 260;
-  const barY = 14;
-  const barW = 520;
-  const barH = 18;
-
-  ctx.fillStyle = 'rgba(0,0,0,0.15)';
-  ctx.fillRect(barX, barY, barW, barH);
-
-  ctx.fillStyle = comboCount >= 5 ? '#f59e0b' : '#3b82f6';
-  ctx.fillRect(barX, barY, barW * pct, barH);
-
-  ctx.font = '700 16px Nunito, sans-serif';
-  ctx.fillStyle = '#111827';
-  ctx.textAlign = 'center';
-  if (comboCount >= 5) {
-    const extraPct = Math.round((getComboMultiplier() - 1) * 1000) / 10;
-    ctx.fillText(`Combo x${comboCount} (+${extraPct}%)`, barX + barW / 2, barY + barH - 3);
-  } else {
-    ctx.fillText(`Combo x${comboCount}`, barX + barW / 2, barY + barH - 3);
-  }
-
+  const x = LOGICAL_W / 2 - 260, y = 14, w = 520, h = 18;
+  ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(x,y,w,h);
+  ctx.fillStyle = comboCount >= 5 ? '#f59e0b' : '#3b82f6'; ctx.fillRect(x,y,w*pct,h);
+  ctx.font = '700 16px Nunito, sans-serif'; ctx.fillStyle = '#111827'; ctx.textAlign = 'center';
+  if (comboCount >= 5) { const extra = Math.round((getComboMultiplier() - 1) * 1000) / 10; ctx.fillText(`Combo x${comboCount} (+${extra}%)`, x+w/2, y+h-3); }
+  else ctx.fillText(`Combo x${comboCount}`, x+w/2, y+h-3);
   if (elapsed > COMBO_TIMEOUT) comboCount = 0;
 }
 
@@ -581,51 +518,34 @@ function drawComboBar() {
  *********************/
 function update() {
   if (!isGameStarted) return;
-
   ctx.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
   drawBackground();
 
-  // Spawn band (centered, visual guide)
   const bandX = SPAWN_AREA_X(), bandW = SPAWN_AREA_W();
-  ctx.fillStyle = 'rgba(0, 255, 0, 0.10)';
-  ctx.fillRect(bandX, 0, bandW, LOGICAL_H);
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
-  ctx.fillRect(bandX, 0, SPAWN_PAD, LOGICAL_H);
+  ctx.fillStyle = 'rgba(0, 255, 0, 0.10)'; ctx.fillRect(bandX, 0, bandW, LOGICAL_H);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.22)'; ctx.fillRect(bandX, 0, SPAWN_PAD, LOGICAL_H);
   ctx.fillRect(bandX + bandW - SPAWN_PAD, 0, SPAWN_PAD, LOGICAL_H);
 
-  // Update
   if (!isPaused) {
-    if (inBonusRound && bonusFarmer) {
-      bonusFarmer.update();
-    } else {
+    if (inBonusRound && bonusFarmer) bonusFarmer.update();
+    else {
       for (let i = 0; i < targets.length; i++) {
         const t = targets[i];
-        if (!t || typeof t.update !== 'function' || typeof t.draw !== 'function') {
-          console.warn('[TTT] Removing non-target from targets:', { index: i, value: t });
-          targets.splice(i, 1); i--; continue;
-        }
+        if (!t || typeof t.update !== 'function' || typeof t.draw !== 'function') { targets.splice(i,1); i--; continue; }
         t.update();
       }
     }
     for (const tm of tomatoes) tm.update();
-    for (let i = popups.length - 1; i >= 0; i--) { const p = popups[i]; p.update(); if (p.dead) popups.splice(i,1); }
-    for (let i = splats.length - 1; i >=0; i--) { const s = splats[i]; s.update(); if (s.dead) splats.splice(i,1); }
+    for (let i = popups.length - 1; i >= 0; i--) { popups[i].update(); if (popups[i].dead) popups.splice(i,1); }
+    for (let i = splats.length - 1; i >= 0; i--) { splats[i].update(); if (splats[i].dead) splats.splice(i,1); }
   }
 
-  // Draw
   if (inBonusRound && bonusFarmer) {
     bonusFarmer.draw();
-    if (showBonusPrompt) {
-      ctx.save();
-      ctx.font = '900 64px Nunito, sans-serif';
-      ctx.fillStyle = '#1f2937';
-      ctx.textAlign = 'center';
-      ctx.fillText('SHOOT THE FARMER', LOGICAL_W / 2, LOGICAL_H / 2 - 40);
-      ctx.restore();
-    }
-  } else {
-    for (const t of targets) { if (t && typeof t.draw === 'function') t.draw(); }
-  }
+    if (showBonusPrompt) { ctx.save(); ctx.font = '900 64px Nunito, sans-serif'; ctx.fillStyle = '#1f2937'; ctx.textAlign='center';
+      ctx.fillText('SHOOT THE FARMER', LOGICAL_W/2, LOGICAL_H/2 - 40); ctx.restore(); }
+  } else { for (const t of targets) t.draw(); }
+
   for (const tm of tomatoes) tm.draw();
   for (const s of splats) s.draw();
   for (const p of popups) p.draw();
@@ -634,17 +554,11 @@ function update() {
   drawLauncher();
 
   if (isPaused) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-    ctx.font = '900 64px Nunito, sans-serif';
-    ctx.fillStyle = '#fff';
-    ctx.textAlign = 'center';
-    ctx.fillText('PAUSED', LOGICAL_W / 2, LOGICAL_H / 2 - 10);
-    ctx.restore();
+    ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0,0,LOGICAL_W,LOGICAL_H);
+    ctx.font = '900 64px Nunito, sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign='center';
+    ctx.fillText('PAUSED', LOGICAL_W/2, LOGICAL_H/2 - 10); ctx.restore();
   }
 
-  // SINGLE RAF CHAIN
   animId = requestAnimationFrame(update);
 }
 
@@ -652,15 +566,11 @@ function update() {
  * GAME LIFECYCLE
  *****************/
 function startGame() {
-  // Close panels
   settingsPanel.style.display = 'none';
   updateLogPanel.style.display = 'none';
-
   clearMenuBackground();
 
-  // Cancel any existing RAF + interval to avoid speed up
-  if (animId) { cancelAnimationFrame(animId); animId = null; }
-  if (gameInterval) { clearInterval(gameInterval); gameInterval = null; }
+  cleanupGameLoops();
 
   setExactCanvasSize();
   isPaused = false;
@@ -675,10 +585,7 @@ function startGame() {
   scoreDisplay.innerText = `Score: ${score}`;
   timerDisplay.innerText = `Time: ${timeLeft}`;
 
-  showCountdown(() => {
-    beginMainTimer();
-    update(); // starts exactly one RAF loop
-  });
+  showCountdown(() => { beginMainTimer(); update(); });
 }
 
 function beginMainTimer() {
@@ -735,26 +642,23 @@ function endBonusRound() {
   }
 }
 
-/** NEW: hard stop & exit helpers **/
+/** Stop & Exit **/
 function cleanupGameLoops() {
   if (animId) { cancelAnimationFrame(animId); animId = null; }
   if (gameInterval) { clearInterval(gameInterval); gameInterval = null; }
 }
 function stopRound(showScoreOverlay = true) {
-  // Stop timers/loops and mark as over
   cleanupGameLoops();
   isGameOver = true;
   isGameStarted = false;
   inBonusRound = false;
   bonusFarmer = null;
-
   if (showScoreOverlay) {
     finalScoreValue2.textContent = score.toLocaleString();
     setScreen('toMenuOverlay');
   }
 }
 function exitToMenu() {
-  // Stop everything and go to menu without score overlay
   cleanupGameLoops();
   isGameOver = false;
   isGameStarted = false;
@@ -782,20 +686,13 @@ pauseBtn.addEventListener('click', () => {
   isPaused = !isPaused;
   pauseBtn.textContent = isPaused ? 'Resume' : 'Pause';
 });
-stopBtn.addEventListener('click', () => {
-  if (!isGameStarted) return;
-  stopRound(true); // show score overlay
-});
-exitBtn.addEventListener('click', () => {
-  // Exit immediately to main menu (no score overlay)
-  exitToMenu();
-});
+stopBtn.addEventListener('click', () => { if (!isGameStarted) return; stopRound(true); });
+exitBtn.addEventListener('click', () => { exitToMenu(); });
 
-// Panels (open)
+// Panels
 settingsBtn.addEventListener('click', () => { settingsPanel.style.display = 'block'; });
 updateLogBtn.addEventListener('click', () => { updateLogPanel.style.display = 'block'; });
 
-// Panels (close via “Close” button or “×”)
 function hideSettings() { settingsPanel.style.display = 'none'; }
 function hideUpdateLog() { updateLogPanel.style.display = 'none'; }
 closeSettings.addEventListener('click', hideSettings);
@@ -803,7 +700,6 @@ closeSettingsX.addEventListener('click', hideSettings);
 closeUpdateLog.addEventListener('click', hideUpdateLog);
 closeUpdateLogX.addEventListener('click', hideUpdateLog);
 
-// Volume sliders (hooks)
 musicVolumeSlider.addEventListener('input', (e) => { musicVolume = parseFloat(e.target.value); });
 sfxVolumeSlider.addEventListener('input', (e) => { sfxVolume = parseFloat(e.target.value); });
 
@@ -811,25 +707,18 @@ sfxVolumeSlider.addEventListener('input', (e) => { sfxVolume = parseFloat(e.targ
  * MENU NAVIGATION UI
  *********************/
 function setScreen(screen) {
-  // Hide all overlays
   mainMenu.classList.remove('active');
   highscoresScreen.classList.remove('active');
   nameEntry.classList.remove('active');
   toMenuOverlay.classList.remove('active');
 
-  // HUD
   const uiElement = document.getElementById('ui');
-  if (screen === 'game') {
-    uiElement.classList.remove('hide');
-  } else {
-    uiElement.classList.add('hide');
-  }
+  if (screen === 'game') uiElement.classList.remove('hide'); else uiElement.classList.add('hide');
 
   switch (screen) {
     case 'menu':
       mainMenu.classList.add('active');
-      applyMenuBackground(); // background + logo
-      // Stop any running loops safely if arriving here
+      applyMenuBackground();
       cleanupGameLoops();
       isGameStarted = false;
       break;
@@ -847,15 +736,15 @@ function setScreen(screen) {
   }
 }
 
-// Main menu buttons
+// Menu buttons
 playBtn.addEventListener('click', startGame);
 openScoresBtn.addEventListener('click', () => { renderTodayScores(); setScreen('scores'); });
 
-// Scores screen buttons
+// Score screen
 scoresToMenuBtn.addEventListener('click', () => setScreen('menu'));
 showAllTimeBtn.addEventListener('click', () => { renderAllTimeScores(); setScreen('scores'); });
 
-// Name entry buttons
+// Name entry
 saveScoreBtn.addEventListener('click', () => {
   const name = (playerNameInput.value || 'Player').trim().slice(0, 16);
   commitScoreWithDestinations(pendingScore, name, pendingDestinations);
@@ -863,7 +752,7 @@ saveScoreBtn.addEventListener('click', () => {
 });
 cancelSaveBtn.addEventListener('click', () => setScreen('menu'));
 
-// Not-on-board menu button
+// Round-over → Main Menu
 toMenuBtn.addEventListener('click', () => setScreen('menu'));
 
 /*********************
@@ -878,25 +767,17 @@ function todayKey() {
 }
 const ALLTIME_KEY = 'tt_alltime_top10';
 
-function loadTodayScores() {
-  try { return JSON.parse(localStorage.getItem(todayKey())) || []; }
-  catch { return []; }
-}
+function loadTodayScores() { try { return JSON.parse(localStorage.getItem(todayKey())) || []; } catch { return []; } }
 function saveTodayScores(arr) { localStorage.setItem(todayKey(), JSON.stringify(arr)); }
 
-function loadAllTimeList() {
-  try { return JSON.parse(localStorage.getItem(ALLTIME_KEY)) || []; }
-  catch { return []; }
-}
+function loadAllTimeList() { try { return JSON.parse(localStorage.getItem(ALLTIME_KEY)) || []; } catch { return []; } }
 function saveAllTimeList(arr) { localStorage.setItem(ALLTIME_KEY, JSON.stringify(arr)); }
 
 function highscoreDestinations(sc) {
   const today = loadTodayScores().sort((a,b)=>b.score - a.score);
   const qualifiesToday = today.length < 10 || sc > (today[9]?.score ?? -Infinity);
-
   const all = loadAllTimeList().sort((a,b)=>b.score - a.score);
   const qualifiesAllTime = all.length < 10 || sc > (all[9]?.score ?? -Infinity);
-
   return { today: qualifiesToday, alltime: qualifiesAllTime };
 }
 
@@ -923,10 +804,7 @@ function renderTodayScores() {
   const list = loadTodayScores().sort((a,b)=>b.score - a.score).slice(0, 10);
   scoresList.innerHTML = '';
   if (list.length === 0) {
-    const li = document.createElement('li');
-    li.innerHTML = `<span>—</span><span>0</span>`;
-    scoresList.appendChild(li);
-    return;
+    const li = document.createElement('li'); li.innerHTML = `<span>—</span><span>0</span>`; scoresList.appendChild(li); return;
   }
   for (const s of list) {
     const li = document.createElement('li');
@@ -940,10 +818,7 @@ function renderAllTimeScores() {
   const list = loadAllTimeList().sort((a,b)=>b.score - a.score).slice(0, 10);
   scoresList.innerHTML = '';
   if (list.length === 0) {
-    const li = document.createElement('li');
-    li.innerHTML = `<span>—</span><span>0</span>`;
-    scoresList.appendChild(li);
-    return;
+    const li = document.createElement('li'); li.innerHTML = `<span>—</span><span>0</span>`; scoresList.appendChild(li); return;
   }
   for (const s of list) {
     const li = document.createElement('li');
@@ -955,15 +830,13 @@ function renderAllTimeScores() {
 /*****************
  * INITIAL BOOT *
  *****************/
-setScreen('menu'); // applies menu background + logo on overlay
+setScreen('menu'); // shows Main Menu only (others hidden)
 
-// Boot images; never block Play if something fails
 (async function boot(){
   try { if (playBtn) playBtn.disabled = true; IMGS = await loadImages(ASSETS); }
   catch(err){ console.warn('[TTT] Asset load issue (using shape fallbacks):', err); }
   finally { if (playBtn) playBtn.disabled = false; }
 })();
 
-// Mark that the game has initialized for debugging
 window.gameInitialized = true;
 console.log("[TTT] Game initialized");
