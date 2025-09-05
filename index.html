@@ -9,52 +9,42 @@
   <!-- Your main stylesheet -->
   <link rel="stylesheet" href="style.css">
   <style>
-    /* Keep title buttons above overlays */
+    /* keep title buttons above overlays */
     #topButtons { z-index: 1000; }
 
-    /* Panel headers with a visible “×” */
+    /* stronger close "×" */
     .panel-header {
       display:flex; align-items:center; justify-content:space-between;
       margin-bottom:12px;
     }
     .close-x {
-      background:#ff4d4d;  /* red background */
-      color:#000;          /* black “×” */
-      border:none;
-      font-size:22px; line-height:1;
-      cursor:pointer; padding:2px 10px;
-      border-radius:8px;
+      background:#ff4d4d;   /* red background */
+      color:#000;           /* black glyph */
+      border:none; font-size:22px; line-height:1;
+      cursor:pointer; padding:2px 10px; border-radius:8px;
     }
-    .close-x:hover { filter:brightness(0.9); }
+    .close-x:hover { filter: brightness(0.9); }
 
-    /* Make overlay panels scrollable inside */
+    /* make overlay panels scrollable inside */
     .overlay-panel {
-      /* existing base styles come from your CSS */
       max-height: 80vh;
-      overflow: hidden;
-      display: none;              /* shown as flex by JS */
-      display: none;
-      /* flex layout for header/content/footer */
-      display: none;
-      /* NOTE: JS sets style.display = 'flex' when opening */
-      flex-direction: column;
+      overflow: hidden;        /* outer container hides, inner scrolls */
+      flex-direction: column;  /* header / content / footer vertical */
     }
     .overlay-panel .panel-content {
       flex: 1 1 auto;
       overflow-y: auto;
-      padding-right: 6px; /* little space for scrollbar */
+      padding-right: 6px; /* room for scrollbar */
     }
     .overlay-panel .panel-footer {
       margin-top: 12px;
-      display: flex;
-      gap: 8px;
-      justify-content: flex-end;
+      display: flex; gap: 8px; justify-content: flex-end;
     }
 
     /* HUD control row */
     #hudControls { margin-top: 8px; display: flex; gap: 8px; justify-content: flex-end; }
 
-    /* Move version label to bottom-left */
+    /* Move version label to bottom-left (your base CSS positions it absolute) */
     #versionLabel { left: 10px; right: auto; }
   </style>
 </head>
@@ -123,7 +113,7 @@
     </div>
 
     <!-- Settings Panel -->
-    <div id="settingsPanel" class="overlay-panel">
+    <div id="settingsPanel" class="overlay-panel" style="display:none;">
       <div class="panel-header">
         <h2 style="margin:0;">Settings</h2>
         <button id="closeSettingsX" class="close-x" title="Close">×</button>
@@ -142,7 +132,7 @@
     </div>
 
     <!-- Update Log Panel -->
-    <div id="updateLogPanel" class="overlay-panel">
+    <div id="updateLogPanel" class="overlay-panel" style="display:none;">
       <div class="panel-header">
         <h2 style="margin:0;">Update Log</h2>
         <button id="closeUpdateLogX" class="close-x" title="Close">×</button>
@@ -152,7 +142,7 @@
         <p><strong>v1.0.7</strong> – Close “×” is black on red; removed fallback title text.</p>
         <p><strong>v1.0.6</strong> – Settings/Update Log visible on title; Pause/Exit; overlay display fix.</p>
         <p><strong>v1.0.5</strong> – Separate logo & background (no duplicate image).</p>
-        <!-- Add more history here; it will scroll -->
+        <!-- Add more history; this area scrolls -->
       </div>
       <div class="panel-footer">
         <button id="closeUpdateLog">Close</button>
