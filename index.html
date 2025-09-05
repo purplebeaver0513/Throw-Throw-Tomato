@@ -12,53 +12,51 @@
     /* Keep title buttons above overlays */
     #topButtons { z-index: 1000; }
 
-    /* Panel header + visible close X (black glyph, red outline) */
+    /* Panel header + highly visible close X (black glyph, red outline) */
     .panel-header {
       display:flex; align-items:center; justify-content:space-between;
       margin-bottom:12px;
     }
     .close-x {
       background:#fff;
-      color:#000;              /* black glyph */
-      border:2px solid #ff4d4d;/* red outline */
+      color:#000;                    /* black “×” */
+      border:3px solid #ff3434;      /* bold red outline */
       font-size:22px; line-height:1;
-      cursor:pointer; padding:2px 10px;
-      border-radius:8px;
-      box-shadow: 0 1px 2px rgba(0,0,0,.2);
+      cursor:pointer; padding:4px 12px;
+      border-radius:10px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.25);
     }
     .close-x:hover { filter:brightness(0.95); }
 
-    /* Make overlay panels scrollable inside, with consistent layout */
+    /* Scrollable overlay panels with consistent layout and width */
     .overlay-panel {
-      /* base sizes come from your CSS; add scroll-friendly layout */
       max-height: 80vh;
-      overflow: hidden;
-      display: none;           /* JS sets to 'flex' on open */
-      flex-direction: column;  /* header / content / footer vertical */
+      overflow: hidden;              /* outer hides; inner scrolls */
+      display: none;                 /* JS toggles to 'flex' when opened */
+      flex-direction: column;        /* header / content / footer */
+      width: min(92vw, 560px);       /* consistent width for nice slider alignment */
     }
     .overlay-panel .panel-content {
       flex: 1 1 auto;
       overflow-y: auto;
-      padding-right: 6px; /* space for scrollbar */
+      padding-right: 8px;            /* space for scrollbar */
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
     }
     .overlay-panel .panel-footer {
       margin-top: 12px;
-      display: flex;
-      gap: 8px;
-      justify-content: flex-end;
+      display: flex; gap: 8px; justify-content: flex-end;
     }
 
-    /* Aligned volume sliders (labels + rails start/end together) */
+    /* Aligned volume sliders (labels and rails start/end together) */
     .overlay-panel label {
       display: grid;
-      grid-template-columns: 1fr 240px;
+      grid-template-columns: 1fr 260px; /* text | slider rail */
       align-items: center;
-      gap: 12px;
+      gap: 14px;
       margin: 12px 0;
     }
-    .overlay-panel input[type="range"] {
-      width: 100%;
-    }
+    .overlay-panel input[type="range"] { width: 100%; }
 
     /* HUD control row */
     #hudControls {
@@ -68,17 +66,17 @@
       justify-content: flex-end;
     }
 
-    /* Version label bottom-left, high z-index, readable */
+    /* Version label bottom-left, fixed, high z-index, readable */
     #versionLabel {
+      position: fixed !important;
       left: 10px !important;
       right: auto !important;
-      bottom: 10px;
-      position: absolute;
-      z-index: 1200;           /* above overlays */
-      color: rgba(255,255,255,0.95);
-      font-weight: 800;
-      text-shadow: 0 1px 2px rgba(0,0,0,.6);
-      pointer-events: none;    /* never blocks clicks */
+      bottom: 10px !important;
+      z-index: 3000 !important;
+      color: rgba(255,255,255,0.98) !important;
+      font-weight: 900 !important;
+      text-shadow: 0 1px 2px rgba(0,0,0,.6) !important;
+      pointer-events: none !important; /* never intercept clicks */
     }
   </style>
 </head>
@@ -109,7 +107,7 @@
     <!-- Final Score badge (compat container) -->
     <div id="finalScore"></div>
 
-    <!-- Main Menu (no center logo/image) -->
+    <!-- Main Menu (NO center logo/image) -->
     <div id="mainMenu" class="overlay center-stack active">
       <button id="playBtn" class="primary">Play</button>
       <button id="openScoresBtn">High Scores</button>
@@ -170,11 +168,9 @@
         <button id="closeUpdateLogX" class="close-x" title="Close">×</button>
       </div>
       <div class="panel-content" id="updateLogContent">
-        <p><strong>v.1.0.8</strong> – Version bottom-left; scrollable panels; Exit disabled during countdown; removed Stop.</p>
-        <p><strong>v.1.0.7</strong> – Close “×” black with red outline; removed fallback title text.</p>
-        <p><strong>v.1.0.6</strong> – Settings/Update Log visible on title; Pause/Exit; overlay display fix.</p>
-        <p><strong>v.1.0.5</strong> – Separate logo & background (no duplicate image).</p>
-        <!-- Add more history; this area scrolls -->
+        <p><strong>v.1.0.9</strong> – Version visible bottom-left; bold red-outlined “×”; scrollable panels; aligned sliders; removed start logo.</p>
+        <p><strong>v.1.0.8</strong> – Exit disabled during countdown; removed Stop.</p>
+        <p><strong>v.1.0.7</strong> – Close “×” styling update.</p>
       </div>
       <div class="panel-footer">
         <button id="closeUpdateLog">Close</button>
@@ -182,7 +178,7 @@
     </div>
 
     <!-- Version Number (bottom-left) -->
-    <div id="versionLabel">v.1.0.8</div>
+    <div id="versionLabel">v.1.0.9</div>
   </div>
 
   <script src="script.js" defer></script>
