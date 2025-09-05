@@ -1,3 +1,5 @@
+"use strict";
+
 /*************************
  * Throw Throw Tomato JS *
  *************************/
@@ -6,11 +8,18 @@
  * ASSETS
  * ============================ */
 const ASSETS = {
+  // Menu background & logo (logo has fallback below)
   menuFullBg: "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025560.png",
   logo:       "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/logo_small.png",
+
+  // Gameplay background
   gameBg:     "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025608.png",
+
+  // Projectiles & effects
   tomato:     "https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/file_000000006e5061fd92760a84f59a4fa3__1_-removebg-preview.png",
   tomatoSplat:"https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/file_00000000c84c6230b19da260b17746ed__1_-removebg-preview.png",
+
+  // Farmer & targets
   farmerAngry:"https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/file_000000009a4c61f7b258eabae653aec9-removebg-preview.png",
   targetYellow:"https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025399-removebg-preview.png",
   targetOrange:"https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025398-removebg-preview.png",
@@ -27,13 +36,13 @@ function loadImages(manifest) {
   let done = 0;
   return new Promise((resolve) => {
     const finish = () => { if (++done === entries.length) resolve(images); };
-    entries.forEach(([key, url]) => {
+    for (const [key, url] of entries) {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => { images[key] = img; finish(); };
       img.onerror = () => { console.warn("[TTT] Failed to load:", url); finish(); };
       img.src = url;
-    });
+    }
   });
 }
 
@@ -48,7 +57,6 @@ const scoreDisplay = document.getElementById('score');
 const pauseBtn = document.getElementById('pauseBtn');
 const exitBtn = document.getElementById('exitBtn');
 const countdownDiv = document.getElementById('countdown');
-const finalScoreDiv = document.getElementById('finalScore');
 
 const mainMenu = document.getElementById('mainMenu');
 const titleLogoImg = document.getElementById('titleLogo');
@@ -101,7 +109,7 @@ window.addEventListener('resize', setExactCanvasSize);
  * MENU BACKGROUND & LOGO
  **********************************/
 function buildFallbackLogoDataURI() {
-  // No text — simple tomato icon fallback
+  // No text — simple tomato icon fallback (visible on any network)
   const svg = `
   <svg xmlns="http://www.w3.org/2000/svg" width="360" height="160" viewBox="0 0 360 160">
     <defs>
@@ -110,11 +118,8 @@ function buildFallbackLogoDataURI() {
       </filter>
     </defs>
     <rect fill="none" width="100%" height="100%"/>
-    <!-- tomato body -->
     <ellipse cx="180" cy="90" rx="110" ry="68" fill="#ff3b3b" filter="url(#s)"/>
-    <!-- highlight -->
     <ellipse cx="150" cy="70" rx="30" ry="18" fill="rgba(255,255,255,0.35)"/>
-    <!-- stem -->
     <path d="M180,42 c-14,-18 -22,-20 -26,-20 10,10 8,18 4,24
              M180,42 c14,-18 22,-20 26,-20 -10,10 -8,18 -4,24"
           stroke="#216e39" stroke-width="6" fill="none" stroke-linecap="round"/>
@@ -124,11 +129,11 @@ function buildFallbackLogoDataURI() {
 }
 function setMenuLogo() {
   if (!titleLogoImg) return;
-  const tryImg = new Image();
-  tryImg.crossOrigin = "anonymous";
-  tryImg.onload = () => { titleLogoImg.src = ASSETS.logo; };
-  tryImg.onerror = () => { titleLogoImg.src = buildFallbackLogoDataURI(); };
-  tryImg.src = ASSETS.logo;
+  const probe = new Image();
+  probe.crossOrigin = "anonymous";
+  probe.onload = () => { titleLogoImg.src = ASSETS.logo; };
+  probe.onerror = () => { titleLogoImg.src = buildFallbackLogoDataURI(); };
+  probe.src = ASSETS.logo;
 
   titleLogoImg.alt = "Throw Throw Tomato";
   titleLogoImg.style.maxWidth = "360px";
@@ -136,19 +141,15 @@ function setMenuLogo() {
   titleLogoImg.style.marginBottom = "28px";
   titleLogoImg.style.display = "block";
 }
-
 function applyMenuBackground() {
   if (!mainMenu) return;
   mainMenu.style.backgroundImage = `url('${ASSETS.menuFullBg}')`;
   mainMenu.style.backgroundSize = 'cover';
   mainMenu.style.backgroundRepeat = 'no-repeat';
   mainMenu.style.backgroundPosition = 'center center';
-  setMenuLogo(); // set or fallback the logo (no text)
+  setMenuLogo();
 }
-function clearMenuBackground() {
-  if (!mainMenu) return;
-  mainMenu.style.backgroundImage = '';
-}
+function clearMenuBackground() { if (mainMenu) mainMenu.style.backgroundImage = ''; }
 
 /**************
  * GAME STATE *
@@ -169,10 +170,10 @@ let inBonusRound = false;
 let bonusFarmer = null;
 let showBonusPrompt = false;
 
-let gameInterval = null;
-let animId = null; // SINGLE RAF LOOP ID
-let countdownActive = false;   // NEW: track countdown
-let countdownTimerId = null;   // NEW: track interval ID
+let animId = null;      // RAF loop
+let gameInterval = null;  // 1-second tick
+let countdownActive = false;
+let countdownTimerId = null;
 
 let musicVolume = 1.0;
 let sfxVolume = 1.0;
@@ -190,10 +191,8 @@ const COMBO_TIMEOUT = 1750;
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min) + min); }
 const SPAWN_BAND_LEFT_RATIO = 0.30;
 const SPAWN_BAND_WIDTH_RATIO = 0.40;
-const SPAWN_AREA_X = () =>
-  (canvas.width / (window.devicePixelRatio || 1)) * SPAWN_BAND_LEFT_RATIO;
-const SPAWN_AREA_W = () =>
-  (canvas.width / (window.devicePixelRatio || 1)) * SPAWN_BAND_WIDTH_RATIO;
+const SPAWN_AREA_X = () => (canvas.width / (window.devicePixelRatio || 1)) * SPAWN_BAND_LEFT_RATIO;
+const SPAWN_AREA_W = () => (canvas.width / (window.devicePixelRatio || 1)) * SPAWN_BAND_WIDTH_RATIO;
 const SPAWN_PAD = 40;
 function buildMiddleLanes(count = 5) {
   const left = SPAWN_AREA_X() + SPAWN_PAD;
@@ -225,7 +224,6 @@ class Popup {
   }
   get dead() { return this.life <= 0; }
 }
-
 class Splat {
   constructor(x, y, imgKey = 'tomatoSplat', life = 42, scale = 1.1) {
     this.x = x; this.y = y; this.imgKey = imgKey;
@@ -263,7 +261,7 @@ class Tomato {
   }
   hit() {
     let awarded = false;
-    // targets
+    // regular targets
     for (let i = targets.length - 1; i >= 0; i--) {
       const t = targets[i];
       if (t && Math.hypot(this.x - t.x, this.y - t.y) < t.radius + this.radius) {
@@ -273,7 +271,8 @@ class Tomato {
         popups.push(new Popup(t.x, t.y - 10, `+${pts}`, '#111'));
         splats.push(new Splat(t.x, t.y - 6, 'tomatoSplat', 44, 1.0));
         targets.splice(i, 1);
-        awarded = true; break;
+        awarded = true;
+        break;
       }
     }
     // farmer
@@ -357,9 +356,7 @@ class Target {
   draw() {
     const size = this.radius * 2.8;
     let img = null;
-    if (IMGS) {
-      img = this.tier === 1 ? IMGS.targetYellow : (this.tier === 2 ? IMGS.targetOrange : IMGS.targetRed);
-    }
+    if (IMGS) img = this.tier === 1 ? IMGS.targetYellow : (this.tier === 2 ? IMGS.targetOrange : IMGS.targetRed);
     if (img) ctx.drawImage(img, this.x - size/2, this.y - size/2, size, size);
     else { ctx.beginPath(); ctx.fillStyle='gray'; ctx.arc(this.x,this.y,this.radius,0,Math.PI*2); ctx.fill(); }
   }
@@ -375,34 +372,43 @@ class Farmer {
     this.width = 140; this.height = 140;
     this.x = bandLeft - this.width - 40;
     this.y = 180;
+
     this.t = 0;
     this.phase = 'enter';
     this.phaseTimer = 0;
+
     this.hitbox = { x: this.x + this.width * 0.33, y: this.y + 6, width: this.width * 0.34, height: 24 };
     this.bodyBox = { x: this.x + this.width * 0.08, y: this.y + 28, width: this.width * 0.84, height: this.height - 36 };
-    this.bodyHits = 0; this.headHits = 0;
 
     const bandWidth = bandRight - bandLeft;
     const framesForTenSec = 10 * 60;
     this.enterSpeedX = bandWidth / framesForTenSec;
+
     this.poseX = bandLeft + bandWidth * 0.55 - this.width / 2;
     this.poseY = this.y;
+
     this.active = false;
   }
   update() {
     this.hitbox.x = this.x + this.width * 0.33; this.hitbox.y = this.y + 6;
     this.bodyBox.x = this.x + this.width * 0.08; this.bodyBox.y = this.y + 28;
+
     if (!this.active) return;
+
     this.t++; this.phaseTimer++;
+
     const bob = Math.sin(this.t * 0.25) * 2;
+
     if (this.phase === 'enter') {
-      this.x += this.enterSpeedX * 1.1; this.y = 180 + bob;
+      this.x += this.enterSpeedX * 1.1;
+      this.y = 180 + bob;
       if (this.x >= this.poseX) { this.x = this.poseX; this.phase = 'pose'; this.phaseTimer = 0; }
     } else if (this.phase === 'pose') {
       this.y = this.poseY + Math.sin(this.t * 0.15) * 1.0;
       if (this.phaseTimer > 180) { this.phase = 'exit'; this.phaseTimer = 0; }
     } else if (this.phase === 'exit') {
-      this.y += 1.6; this.x += 0.4;
+      this.y += 1.6;
+      this.x += 0.4;
       if (this.y > LOGICAL_H + 40) endBonusRound();
     }
   }
@@ -431,14 +437,25 @@ function applyComboAndReturnPoints(basePoints, px, py) {
  * BACKGROUND & HUD *
  *********************/
 function drawBackground() {
-  ctx.fillStyle = '#a0e0ff'; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-  const img = IMGS && IMGS.gameBg; if (!img) return;
+  ctx.fillStyle = '#a0e0ff';
+  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+  const img = IMGS && IMGS.gameBg;
+  if (!img) return;
+
+  // cover
   const canvasW = LOGICAL_W, canvasH = LOGICAL_H;
   const imgW = img.width, imgH = img.height;
   const canvasAR = canvasW / canvasH, imgAR = imgW / imgH;
+
   let srcW, srcH, srcX, srcY;
-  if (imgAR > canvasAR) { srcH = imgH; srcW = Math.floor(imgH * canvasAR); srcX = Math.floor((imgW - srcW) / 2); srcY = 0; }
-  else { srcW = imgW; srcH = Math.floor(imgW / canvasAR); srcX = 0; srcY = Math.floor((imgH - srcH) / 2); }
+  if (imgAR > canvasAR) {
+    srcH = imgH; srcW = Math.floor(imgH * canvasAR);
+    srcX = Math.floor((imgW - srcW) / 2); srcY = 0;
+  } else {
+    srcW = imgW; srcH = Math.floor(imgW / canvasAR);
+    srcX = 0; srcY = Math.floor((imgH - srcH) / 2);
+  }
   ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, canvasW, canvasH);
 }
 function drawLauncher() { ctx.fillStyle = '#7b3f00'; ctx.fillRect(LOGICAL_W/2 - 12, LOGICAL_H - 30, 24, 24); }
@@ -446,12 +463,19 @@ function drawComboBar() {
   if (comboCount <= 0) return;
   const now = performance.now(), elapsed = now - lastHitTime, remain = Math.max(0, COMBO_TIMEOUT - elapsed);
   const pct = Math.max(0, Math.min(1, remain / COMBO_TIMEOUT));
-  const x = LOGICAL_W / 2 - 260, y = 14, w = 520, h = 18;
+  const x = LOGICAL_W/2 - 260, y = 14, w = 520, h = 18;
+
   ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(x,y,w,h);
   ctx.fillStyle = comboCount >= 5 ? '#f59e0b' : '#3b82f6'; ctx.fillRect(x,y,w*pct,h);
+
   ctx.font = '700 16px Nunito, sans-serif'; ctx.fillStyle = '#111827'; ctx.textAlign = 'center';
-  if (comboCount >= 5) { const extra = Math.round((getComboMultiplier() - 1) * 1000) / 10; ctx.fillText(`Combo x${comboCount} (+${extra}%)`, x+w/2, y+h-3); }
-  else ctx.fillText(`Combo x${comboCount}`, x+w/2, y+h-3);
+  if (comboCount >= 5) {
+    const extra = Math.round((getComboMultiplier() - 1) * 1000) / 10;
+    ctx.fillText(`Combo x${comboCount} (+${extra}%)`, x + w/2, y + h - 3);
+  } else {
+    ctx.fillText(`Combo x${comboCount}`, x + w/2, y + h - 3);
+  }
+
   if (elapsed > COMBO_TIMEOUT) comboCount = 0;
 }
 
@@ -460,20 +484,24 @@ function drawComboBar() {
  *********************/
 function update() {
   if (!isGameStarted) return;
+
   ctx.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
   drawBackground();
 
+  // spawn band guide
   const bandX = SPAWN_AREA_X(), bandW = SPAWN_AREA_W();
   ctx.fillStyle = 'rgba(0, 255, 0, 0.10)'; ctx.fillRect(bandX, 0, bandW, LOGICAL_H);
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.22)'; ctx.fillRect(bandX, 0, SPAWN_PAD, LOGICAL_H);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+  ctx.fillRect(bandX, 0, SPAWN_PAD, LOGICAL_H);
   ctx.fillRect(bandX + bandW - SPAWN_PAD, 0, SPAWN_PAD, LOGICAL_H);
 
   if (!isPaused) {
-    if (inBonusRound && bonusFarmer) bonusFarmer.update();
-    else {
+    if (inBonusRound && bonusFarmer) {
+      bonusFarmer.update();
+    } else {
       for (let i = 0; i < targets.length; i++) {
         const t = targets[i];
-        if (!t || typeof t.update !== 'function' || typeof t.draw !== 'function') { targets.splice(i,1); i--; continue; }
+        if (!t || typeof t.update !== 'function' || typeof t.draw !== 'function') { targets.splice(i, 1); i--; continue; }
         t.update();
       }
     }
@@ -484,10 +512,14 @@ function update() {
 
   if (inBonusRound && bonusFarmer) {
     bonusFarmer.draw();
-    if (showBonusPrompt) { ctx.save(); ctx.font = '900 64px Nunito, sans-serif'; ctx.fillStyle = '#1f2937'; ctx.textAlign='center';
-      ctx.fillText('SHOOT THE FARMER', LOGICAL_W/2, LOGICAL_H/2 - 40); ctx.restore(); }
-  } else { for (const t of targets) t.draw(); }
-
+    if (showBonusPrompt) {
+      ctx.save(); ctx.font = '900 64px Nunito, sans-serif'; ctx.fillStyle = '#1f2937'; ctx.textAlign = 'center';
+      ctx.fillText('SHOOT THE FARMER', LOGICAL_W / 2, LOGICAL_H / 2 - 40);
+      ctx.restore();
+    }
+  } else {
+    for (const t of targets) t.draw();
+  }
   for (const tm of tomatoes) tm.draw();
   for (const s of splats) s.draw();
   for (const p of popups) p.draw();
@@ -496,9 +528,14 @@ function update() {
   drawLauncher();
 
   if (isPaused) {
-    ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0,0,LOGICAL_W,LOGICAL_H);
-    ctx.font = '900 64px Nunito, sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign='center';
-    ctx.fillText('PAUSED', LOGICAL_W/2, LOGICAL_H/2 - 10); ctx.restore();
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+    ctx.font = '900 64px Nunito, sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText('PAUSED', LOGICAL_W / 2, LOGICAL_H / 2 - 10);
+    ctx.restore();
   }
 
   animId = requestAnimationFrame(update);
@@ -532,12 +569,10 @@ function startGame() {
 
   showCountdown(() => {
     beginMainTimer();
-    // Re-enable exit AFTER countdown completes
-    exitBtn.disabled = false;
-    update(); // start RAF loop
+    exitBtn.disabled = false; // enable after countdown completes
+    update();                 // start RAF loop
   });
 }
-
 function beginMainTimer() {
   gameInterval = setInterval(() => {
     if (isGameOver || inBonusRound) { clearInterval(gameInterval); gameInterval = null; return; }
@@ -558,7 +593,6 @@ function beginMainTimer() {
     if (Math.random() < 0.4) targets.push(new Target(3));
   }, 1000);
 }
-
 function showCountdown(callback) {
   const messages = ['Ready...', 'Set...', 'Go!'];
   let index = 0;
@@ -579,13 +613,11 @@ function showCountdown(callback) {
     }
   }, 1000);
 }
-
 function triggerBonusRound() {
   inBonusRound = true; targets = []; bonusFarmer = new Farmer();
   showBonusPrompt = true;
   setTimeout(() => { showBonusPrompt = false; bonusFarmer.active = true; }, 1000);
 }
-
 function endBonusRound() {
   inBonusRound = false; bonusFarmer = null; isGameOver = true;
 
@@ -609,11 +641,8 @@ function cleanupGameLoops() {
   if (gameInterval) { clearInterval(gameInterval); gameInterval = null; }
   if (countdownTimerId) { clearInterval(countdownTimerId); countdownTimerId = null; }
 }
-
 function exitToMenu() {
-  // Only allow after countdown completes
-  if (countdownActive) return;
-
+  if (countdownActive) return; // no exit during countdown
   cleanupGameLoops();
   isGameOver = false;
   isGameStarted = false;
@@ -645,6 +674,7 @@ exitBtn.addEventListener('click', () => { exitToMenu(); });
 // Panels (open as flex so scrolling works)
 settingsBtn.addEventListener('click', () => { settingsPanel.style.display = 'flex'; });
 updateLogBtn.addEventListener('click', () => { updateLogPanel.style.display = 'flex'; });
+// Panels (close)
 function hideSettings() { settingsPanel.style.display = 'none'; }
 function hideUpdateLog() { updateLogPanel.style.display = 'none'; }
 closeSettings.addEventListener('click', hideSettings);
@@ -652,7 +682,7 @@ closeSettingsX.addEventListener('click', hideSettings);
 closeUpdateLog.addEventListener('click', hideUpdateLog);
 closeUpdateLogX.addEventListener('click', hideUpdateLog);
 
-// Volume sliders
+// Volume sliders (hooks)
 musicVolumeSlider.addEventListener('input', (e) => { musicVolume = parseFloat(e.target.value); });
 sfxVolumeSlider.addEventListener('input', (e) => { sfxVolume = parseFloat(e.target.value); });
 
@@ -660,44 +690,52 @@ sfxVolumeSlider.addEventListener('input', (e) => { sfxVolume = parseFloat(e.targ
  * MENU NAVIGATION UI
  *********************/
 function setScreen(screen) {
+  // hide all overlays
   mainMenu.classList.remove('active');
   highscoresScreen.classList.remove('active');
   nameEntry.classList.remove('active');
   toMenuOverlay.classList.remove('active');
 
+  // HUD visibility
   const uiElement = document.getElementById('ui');
   if (screen === 'game') uiElement.classList.remove('hide'); else uiElement.classList.add('hide');
 
   switch (screen) {
     case 'menu':
       mainMenu.classList.add('active');
-      applyMenuBackground();         // background + logo (no text)
-      cleanupGameLoops();            // ensure stopped
-      // reset countdown state in case we arrived early
+      applyMenuBackground();
+      cleanupGameLoops();          // hard stop
       countdownActive = false;
       exitBtn.disabled = false;
       isGameStarted = false;
       break;
     case 'scores':
-      highscoresScreen.classList.add('active'); clearMenuBackground(); break;
+      highscoresScreen.classList.add('active');
+      clearMenuBackground();
+      break;
     case 'nameEntry':
-      nameEntry.classList.add('active'); clearMenuBackground(); break;
+      nameEntry.classList.add('active');
+      clearMenuBackground();
+      break;
     case 'toMenuOverlay':
-      toMenuOverlay.classList.add('active'); clearMenuBackground(); break;
+      toMenuOverlay.classList.add('active');
+      clearMenuBackground();
+      break;
     case 'game':
-      clearMenuBackground(); break;
+      clearMenuBackground();
+      break;
   }
 }
 
-// Menu buttons
+// Main menu buttons
 playBtn.addEventListener('click', startGame);
 openScoresBtn.addEventListener('click', () => { renderTodayScores(); setScreen('scores'); });
 
-// Score screen
+// Score screen buttons
 scoresToMenuBtn.addEventListener('click', () => setScreen('menu'));
 showAllTimeBtn.addEventListener('click', () => { renderAllTimeScores(); setScreen('scores'); });
 
-// Name entry
+// Name entry buttons
 saveScoreBtn.addEventListener('click', () => {
   const name = (playerNameInput.value || 'Player').trim().slice(0, 16);
   commitScoreWithDestinations(pendingScore, name, pendingDestinations);
@@ -732,7 +770,6 @@ function highscoreDestinations(sc) {
   const qualifiesAllTime = all.length < 10 || sc > (all[9]?.score ?? -Infinity);
   return { today: qualifiesToday, alltime: qualifiesAllTime };
 }
-
 function commitScoreWithDestinations(sc, name, dest) {
   const entry = { name, score: sc, date: Date.now() };
   if (dest.today) {
@@ -744,24 +781,28 @@ function commitScoreWithDestinations(sc, name, dest) {
     saveAllTimeList(all.slice(0, 10));
   }
 }
-
 function renderTodayScores() {
   scoresTitle.textContent = '🏆 High Scores (Today)';
   const list = loadTodayScores().sort((a,b)=>b.score - a.score).slice(0, 10);
   scoresList.innerHTML = '';
-  if (list.length === 0) { const li = document.createElement('li'); li.innerHTML = `<span>—</span><span>0</span>`; scoresList.appendChild(li); return; }
+  if (list.length === 0) {
+    const li = document.createElement('li'); li.innerHTML = `<span>—</span><span>0</span>`;
+    scoresList.appendChild(li); return;
+  }
   for (const s of list) {
     const li = document.createElement('li');
     li.innerHTML = `<span>${s.name}</span><span>${s.score.toLocaleString()}</span>`;
     scoresList.appendChild(li);
   }
 }
-
 function renderAllTimeScores() {
   scoresTitle.textContent = '🏆 Highest Scores (All Time)';
   const list = loadAllTimeList().sort((a,b)=>b.score - a.score).slice(0, 10);
   scoresList.innerHTML = '';
-  if (list.length === 0) { const li = document.createElement('li'); li.innerHTML = `<span>—</span><span>0</span>`; scoresList.appendChild(li); return; }
+  if (list.length === 0) {
+    const li = document.createElement('li'); li.innerHTML = `<span>—</span><span>0</span>`;
+    scoresList.appendChild(li); return;
+  }
   for (const s of list) {
     const li = document.createElement('li');
     li.innerHTML = `<span>${s.name}</span><span>${s.score.toLocaleString()}</span>`;
@@ -778,5 +819,4 @@ setScreen('menu'); // background + logo (no text)
   catch(err){ console.warn('[TTT] Asset load issue (using shape fallbacks):', err); }
   finally { if (playBtn) playBtn.disabled = false; }
 })();
-window.gameInitialized = true;
 console.log("[TTT] Game initialized");
