@@ -29,13 +29,13 @@
     <!-- Countdown overlay -->
     <div id="countdown"></div>
 
-    <!-- Final Score badge -->
+    <!-- Final Score badge (unused container, kept for compatibility) -->
     <div id="finalScore"></div>
 
     <!-- Main Menu -->
     <div id="mainMenu" class="overlay center-stack active">
       <img id="titleLogo" alt="Throw Throw Tomato"
-        src="https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/refs/heads/main/1000025560.png" />
+        src="https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025560.png" />
       <button id="playBtn" class="primary">Play</button>
       <button id="openScoresBtn">High Scores</button>
     </div>
@@ -98,13 +98,7 @@
     <div id="versionLabel">v1.0.4</div>
   </div>
 
-  <!-- load script AFTER DOM -->
-  <script>
-    window.addEventListener("DOMContentLoaded", () => {
-      const script = document.createElement("script");
-      script.src = "script.js";
-      document.body.appendChild(script);
-    });
-  </script>
+  <!-- Defer ensures DOM exists before script executes -->
+  <script src="script.js" defer></script>
 </body>
 </html>
