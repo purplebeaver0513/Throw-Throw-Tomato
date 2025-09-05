@@ -1,46 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Throw Throw Tomato</title>
+  <meta charset="utf-8" />
+  <title>Throw Throw Tomato — Standalone</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#000; overflow:hidden; }
+    .game-container { position:relative; width:100vw; height:100vh; }
+    #gameCanvas { display:block; width:100%; height:100%; background:#87CEEB; }
+    #topButtons { position:absolute; top:20px; left:20px; z-index:100; }
+    #topButtons button { margin-right:10px; padding:10px; font-size:16px; background:#fff; border:0; border-radius:6px; cursor:pointer; }
+    #ui { position:absolute; top:20px; right:20px; z-index:100; color:#fff; font-weight:800; }
+    #ui.hide { display:none; }
+    #ui div { margin-bottom:10px; background:rgba(0,0,0,.7); padding:8px 12px; border-radius:6px; }
+    #pauseBtn { padding:8px 16px; background:#ff6b6b; color:#fff; border:0; border-radius:6px; cursor:pointer; }
+    .overlay { position:absolute; inset:0; background:rgba(0,0,0,.9); display:none; z-index:200; }
+    .overlay.active { display:flex; }
+    .center-stack { flex-direction:column; justify-content:center; align-items:center; color:#fff; text-align:center; }
+    button { padding:12px 24px; margin:8px; font-size:16px; font-weight:600; border:0; border-radius:8px; cursor:pointer; }
+    .primary { background:#ff6b6b; color:#fff; }
+    .score-list { background:rgba(255,255,255,.1); border-radius:8px; padding:20px; margin:20px 0; min-width:300px; }
+    .score-list li { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.2); }
+    .score-list li:last-child { border-bottom:none; }
+    .row { display:flex; gap:10px; justify-content:center; }
+    #countdown { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:72px; font-weight:900; color:#fff; text-shadow:3px 3px 0 #000; z-index:250; display:none; }
+    #versionLabel { position:absolute; bottom:10px; right:10px; color:rgba(255,255,255,.5); font-size:12px; z-index:50; }
+    /* tiny on-screen error console */
+    #debug { position:absolute; bottom:10px; left:10px; max-width:40vw; font:12px/1.3 ui-monospace,monospace; color:#fff; background:rgba(0,0,0,.6); padding:6px 8px; border-radius:6px; white-space:pre-wrap; z-index:9999; display:none; }
+  </style>
 </head>
-
 <body>
   <div class="game-container">
-    <!-- Top-left buttons -->
     <div id="topButtons">
       <button id="settingsBtn">⚙️</button>
       <button id="updateLogBtn">📜</button>
     </div>
 
-    <!-- In-game HUD -->
     <div id="ui" class="hide">
       <div id="timer">Time: 20</div>
       <div id="score">Score: 0</div>
       <button id="pauseBtn" type="button">Pause</button>
     </div>
 
-    <!-- Game Canvas -->
     <canvas id="gameCanvas"></canvas>
-
-    <!-- Countdown overlay -->
     <div id="countdown"></div>
-
-    <!-- Final Score badge (unused container, kept for compatibility) -->
     <div id="finalScore"></div>
 
-    <!-- Main Menu -->
     <div id="mainMenu" class="overlay center-stack active">
-      <img id="titleLogo" alt="Throw Throw Tomato"
-        src="https://raw.githubusercontent.com/purplebeaver0513/Throw-Throw-Tomato-Assets/main/1000025560.png" />
+      <h1 style="margin-bottom:16px;">Throw Throw Tomato 🍅</h1>
       <button id="playBtn" class="primary">Play</button>
       <button id="openScoresBtn">High Scores</button>
     </div>
 
-    <!-- High Scores Screen -->
     <div id="highscoresScreen" class="overlay center-stack">
       <h2 id="scoresTitle">🏆 High Scores (Today)</h2>
       <ol id="scoresList" class="score-list"></ol>
@@ -50,55 +62,151 @@
       </div>
     </div>
 
-    <!-- Name Entry -->
     <div id="nameEntry" class="overlay center-stack">
       <h2>🎉 New High Score!</h2>
       <div class="big-score">Your Score: <span id="finalScoreValue">0</span></div>
-      <label for="playerName">Enter your name</label>
-      <input id="playerName" type="text" maxlength="16" placeholder="Your name" />
+      <label for="playerName" style="margin-top:10px;">Enter your name</label>
+      <input id="playerName" type="text" maxlength="16" placeholder="Your name" style="padding:10px; border-radius:6px; border:1px solid #ccc;"/>
       <div class="row">
         <button id="saveScoreBtn" class="primary">Save</button>
         <button id="cancelSaveBtn">Main Menu</button>
       </div>
     </div>
 
-    <!-- Not on board → Main Menu button -->
     <div id="toMenuOverlay" class="overlay center-stack">
       <h2>Round Over</h2>
       <div class="big-score">Final Score: <span id="finalScoreValue2">0</span></div>
       <button id="toMenuBtn" class="primary">Main Menu</button>
     </div>
 
-    <!-- Settings Panel -->
-    <div id="settingsPanel" class="overlay-panel">
-      <h2>Settings</h2>
-      <label>Music Volume
-        <input id="musicVolume" type="range" min="0" max="1" step="0.01" value="1">
-      </label>
-      <label>Sound Effects Volume
-        <input id="sfxVolume" type="range" min="0" max="1" step="0.01" value="1">
-      </label>
-      <button id="closeSettings">Close</button>
-    </div>
-
-    <!-- Update Log Panel -->
-    <div id="updateLogPanel" class="overlay-panel">
-      <h2>Update Log</h2>
-      <div id="updateLogContent">
-        <p><strong>v1.0.4</strong> – Testing the new highscore. Highscores now will not be saved locally. It will be saved in the cloud </p>
-        <p><strong>v1.0.3</strong> – Added most of the visual assets to the game, fixed minor bugs, updated visual assets. </p>
-        <p><strong>v1.0.2</strong> – Added combo bar, added almost all of the visual assets even though none are being used right now. </p>
-        <p><strong>v1.0.1</strong> – Settings (music/SFX), Update Log, daily & all-time Top 10, bonus round prompt, moving targets spawn from left side, target popups, name entry flow.</p>
-        <p><strong>v1.0.0</strong> – Initial release: targets (3 tiers), tomatoes from center, bonus farmer with multipliers, green spawn band.</p>
+    <div id="settingsPanel" class="overlay center-stack" style="display:none;">
+      <div style="background:#fff; color:#000; padding:24px; border-radius:10px;">
+        <h2>Settings</h2>
+        <label>Music Volume <input id="musicVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
+        <label>Sound Effects Volume <input id="sfxVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
+        <div class="row" style="justify-content:flex-end;"><button id="closeSettings">Close</button></div>
       </div>
-      <button id="closeUpdateLog">Close</button>
     </div>
 
-    <!-- Version Number -->
-    <div id="versionLabel">v1.0.4</div>
+    <div id="updateLogPanel" class="overlay center-stack" style="display:none;">
+      <div style="background:#fff; color:#000; padding:24px; border-radius:10px;">
+        <h2>Update Log</h2>
+        <p>Standalone demo — no remote assets needed.</p>
+        <div class="row" style="justify-content:flex-end;"><button id="closeUpdateLog">Close</button></div>
+      </div>
+    </div>
+
+    <div id="versionLabel">standalone</div>
+    <div id="debug"></div>
   </div>
 
-  <!-- Defer ensures DOM exists before script executes -->
-  <script src="script.js" defer></script>
-</body>
-</html>
+  <script>
+  // --- Tiny on-screen console for instant feedback ---
+  (function(){
+    const box = document.getElementById('debug');
+    const log = (...args) => { box.style.display='block'; box.textContent += args.join(' ') + '\\n'; };
+    window.onerror = (msg, src, line, col, err) => { log('ERROR:', msg, '@', src, line+':'+col); };
+    ['log','warn','error'].forEach(kind=>{
+      const orig = console[kind].bind(console);
+      console[kind] = (...a)=>{ orig(...a); log(kind.toUpperCase()+':', ...a); };
+    });
+  })();
+
+  // ---------- Game Code (no external assets) ----------
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const timerDisplay = document.getElementById('timer');
+  const scoreDisplay = document.getElementById('score');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const countdownDiv = document.getElementById('countdown');
+
+  const mainMenu = document.getElementById('mainMenu');
+  const playBtn = document.getElementById('playBtn');
+  const openScoresBtn = document.getElementById('openScoresBtn');
+
+  const highscoresScreen = document.getElementById('highscoresScreen');
+  const scoresTitle = document.getElementById('scoresTitle');
+  const scoresList = document.getElementById('scoresList');
+  const showAllTimeBtn = document.getElementById('showAllTimeBtn');
+  const scoresToMenuBtn = document.getElementById('scoresToMenuBtn');
+
+  const nameEntry = document.getElementById('nameEntry');
+  const finalScoreValue = document.getElementById('finalScoreValue');
+  const playerNameInput = document.getElementById('playerName');
+  const saveScoreBtn = document.getElementById('saveScoreBtn');
+  const cancelSaveBtn = document.getElementById('cancelSaveBtn');
+
+  const toMenuOverlay = document.getElementById('toMenuOverlay');
+  const toMenuBtn = document.getElementById('toMenuBtn');
+  const finalScoreValue2 = document.getElementById('finalScoreValue2');
+
+  const settingsBtn = document.getElementById('settingsBtn');
+  const updateLogBtn = document.getElementById('updateLogBtn');
+  const settingsPanel = document.getElementById('settingsPanel');
+  const updateLogPanel = document.getElementById('updateLogPanel');
+  const closeSettings = document.getElementById('closeSettings');
+  const closeUpdateLog = document.getElementById('closeUpdateLog');
+  const musicVolumeSlider = document.getElementById('musicVolume');
+  const sfxVolumeSlider = document.getElementById('sfxVolume');
+
+  const LOGICAL_W = 1800;
+  const LOGICAL_H = 600;
+
+  function setExactCanvasSize() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width  = Math.round(LOGICAL_W * dpr);
+    canvas.height = Math.round(LOGICAL_H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+  }
+  setExactCanvasSize();
+  addEventListener('resize', setExactCanvasSize);
+
+  // State
+  let score = 0, timeLeft = 20, cooldown = false;
+  let isGameOver = false, isGameStarted = false, isPaused = false;
+  let targets = [], tomatoes = [], popups = [], splats = [];
+  let inBonusRound = false, bonusFarmer = null, showBonusPrompt = false;
+  let animId = null, gameInterval = null;
+  let comboCount = 0, bestStreak = 0, lastHitTime = 0;
+  const COMBO_TIMEOUT = 1750;
+
+  // Helpers
+  const rand = (min, max) => Math.floor(Math.random() * (max - min) + min);
+  const SPAWN_BAND_LEFT_RATIO = 0.30;
+  const SPAWN_BAND_WIDTH_RATIO = 0.40;
+  const SPAWN_AREA_X = () => (LOGICAL_W) * SPAWN_BAND_LEFT_RATIO;
+  const SPAWN_AREA_W = () => (LOGICAL_W) * SPAWN_BAND_WIDTH_RATIO;
+  const SPAWN_PAD = 40;
+  function buildMiddleLanes(count=5){
+    const left = SPAWN_AREA_X() + SPAWN_PAD;
+    const right = SPAWN_AREA_X() + SPAWN_AREA_W() - SPAWN_PAD;
+    if (count <= 1) return [Math.floor((left + right)/2)];
+    const step = (right - left) / (count - 1);
+    return Array.from({length:count}, (_,i)=>Math.floor(left + i*step));
+  }
+
+  // FX
+  class Popup {
+    constructor(x,y,text,color='#111'){ this.x=x; this.y=y; this.text=text; this.color=color; this.alpha=1; this.dy=-1.2; this.life=60; this.size=28; }
+    update(){ this.y+=this.dy; this.life--; this.alpha=Math.max(0, this.life/60); }
+    draw(){ ctx.save(); ctx.globalAlpha=this.alpha; ctx.fillStyle=this.color; ctx.font='800 28px system-ui, sans-serif'; ctx.textAlign='center'; ctx.fillText(this.text,this.x,this.y); ctx.restore(); }
+    get dead(){ return this.life<=0; }
+  }
+  class Splat {
+    constructor(x,y,life=42,scale=1.1){ this.x=x; this.y=y; this.life=life; this.max=life; this.scale=scale; }
+    update(){ this.life--; }
+    draw(){ const a=Math.max(0,this.life/this.max); const r=40*this.scale; ctx.save(); ctx.globalAlpha=a; ctx.fillStyle='rgba(200,0,0,.8)'; ctx.beginPath(); ctx.arc(this.x,this.y,r,0,Math.PI*2); ctx.fill(); ctx.restore(); }
+    get dead(){ return this.life<=0; }
+  }
+
+  // Entities
+  class Tomato {
+    constructor(tx,ty){ this.x=LOGICAL_W/2; this.y=LOGICAL_H-40; this.tx=tx; this.ty=ty; this.r=10; this.speed=18; }
+    update(){
+      const dx=this.tx-this.x, dy=this.ty-this.y, d=Math.hypot(dx,dy);
+      if(d>this.speed){ this.x += (dx/d)*this.speed; this.y += (dy/d)*this.speed; }
+      else { this.hit(); }
+    }
+    hit(){
+      let awarded=fal
