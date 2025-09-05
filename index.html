@@ -4,32 +4,60 @@
   <meta charset="utf-8" />
   <title>Throw Throw Tomato</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Font (optional; fallback-safe if blocked) -->
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+  <!-- Your existing CSS file -->
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* Ensure top-left buttons are visible above the menu overlay */
+    #topButtons { z-index: 1000; }
+    /* Add a clear “X” close control on panels */
+    .panel-header {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:12px;
+    }
+    .close-x {
+      background: transparent; border: none; font-size: 22px; line-height: 1;
+      cursor: pointer; padding: 2px 6px; border-radius: 6px;
+    }
+    .close-x:hover { background: rgba(0,0,0,0.06); }
+    /* Extra HUD controls */
+    #hudControls { margin-top: 8px; display: flex; gap: 8px; justify-content: flex-end; }
+    /* Make overlays flex containers by default (your CSS had .overlay.active = flex) */
+    .center-stack { display: flex; }
+  </style>
 </head>
 <body>
   <div class="game-container">
-    <!-- Top-left buttons -->
+    <!-- Always-visible top-left buttons (overlays can't block them due to high z-index) -->
     <div id="topButtons">
-      <button id="settingsBtn">⚙️</button>
-      <button id="updateLogBtn">📜</button>
+      <button id="settingsBtn" title="Settings">⚙️</button>
+      <button id="updateLogBtn" title="Update Log">📜</button>
     </div>
 
     <!-- In-game HUD -->
     <div id="ui" class="hide">
       <div id="timer">Time: 20</div>
       <div id="score">Score: 0</div>
-      <button id="pauseBtn" type="button">Pause</button>
+      <div id="hudControls">
+        <button id="pauseBtn" type="button">Pause</button>
+        <button id="stopBtn" type="button" title="Stop this round now">Stop</button>
+        <button id="exitBtn" type="button" title="Exit to Main Menu">Exit</button>
+      </div>
     </div>
 
     <!-- Game Canvas -->
     <canvas id="gameCanvas"></canvas>
+
+    <!-- Countdown overlay -->
     <div id="countdown"></div>
+
+    <!-- Final Score badge (unused direct badge; kept for compatibility) -->
     <div id="finalScore"></div>
 
     <!-- Main Menu -->
     <div id="mainMenu" class="overlay center-stack active">
-      <!-- Logo now separate asset -->
+      <!-- Logo is set by JS (with fallback if remote logo fails) -->
       <img id="titleLogo" alt="Throw Throw Tomato Logo" />
       <button id="playBtn" class="primary">Play</button>
       <button id="openScoresBtn">High Scores</button>
@@ -64,9 +92,12 @@
       <button id="toMenuBtn" class="primary">Main Menu</button>
     </div>
 
-    <!-- Settings -->
+    <!-- Settings Panel -->
     <div id="settingsPanel" class="overlay-panel">
-      <h2>Settings</h2>
+      <div class="panel-header">
+        <h2 style="margin:0;">Settings</h2>
+        <button id="closeSettingsX" class="close-x" title="Close">×</button>
+      </div>
       <label>Music Volume
         <input id="musicVolume" type="range" min="0" max="1" step="0.01" value="1">
       </label>
@@ -76,18 +107,21 @@
       <button id="closeSettings">Close</button>
     </div>
 
-    <!-- Update Log -->
+    <!-- Update Log Panel -->
     <div id="updateLogPanel" class="overlay-panel">
-      <h2>Update Log</h2>
+      <div class="panel-header">
+        <h2 style="margin:0;">Update Log</h2>
+        <button id="closeUpdateLogX" class="close-x" title="Close">×</button>
+      </div>
       <div id="updateLogContent">
-        <p><strong>v1.0.5</strong> – Fixed duplicate background image issue (logo separated).</p>
-        <p><strong>v1.0.4</strong> – Highscore testing (now stored locally).</p>
-        <p><strong>v1.0.3</strong> – Visual assets, bug fixes.</p>
+        <p><strong>v1.0.6</strong> – Settings/Update Log now visible on title; added “×” closers; Pause/Stop/Exit controls.</p>
+        <p><strong>v1.0.5</strong> – Separate menu logo & background (no duplicate image).</p>
       </div>
       <button id="closeUpdateLog">Close</button>
     </div>
 
-    <div id="versionLabel">v1.0.5</div>
+    <!-- Version Number -->
+    <div id="versionLabel">v1.0.6</div>
   </div>
 
   <script src="script.js" defer></script>
